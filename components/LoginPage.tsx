@@ -2,57 +2,60 @@
 import React, { useState } from 'react';
 import { ViewState } from '../types';
 import { Logo } from './Logo';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Loader2 } from 'lucide-react';
 import { useTheme } from '../App';
+import { auth } from '../lib/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 interface AuthProps {
   onNavigate: (view: ViewState) => void;
   onLogin?: (email: string) => void;
 }
 
-export const LoginPage: React.FC<AuthProps> = ({ onNavigate, onLogin }) => {
+export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [emailError, setEmailError] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
 
-  const validateEmail = (email: string) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  };
-
   const handleSocialLogin = (provider: 'apple' | 'google') => {
-    // Simulate social login by passing a provider-specific email
-    // This allows App.tsx to generate a consistent avatar/name
-    const dummyEmail = provider === 'apple' ? 'usuario@icloud.com' : 'usuario@gmail.com';
-    if (onLogin) {
-      onLogin(dummyEmail);
-    } else {
-      onNavigate('DASHBOARD_HOME');
-    }
+    alert("Para login social, configure os provedores no Firebase Console.");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Reset error
-    setEmailError('');
+    setError('');
 
     if (!email) {
-      setEmailError('O campo de email é obrigatório.');
+      setError('O campo de email é obrigatório.');
       return;
     }
 
-    if (!validateEmail(email)) {
-      setEmailError('Por favor, insira um email válido.');
-      return;
+    if (!password) {
+        setError('O campo de senha é obrigatório.');
+        return;
     }
 
-    // Proceed with Login
-    if (onLogin) {
-        onLogin(email);
-    } else {
-        onNavigate('DASHBOARD_HOME');
+    setIsLoading(true);
+
+    try {
+        if (!auth) throw new Error("Firebase não configurado.");
+        await signInWithEmailAndPassword(auth, email, password);
+        // Navigation is handled by App.tsx's onAuthStateChanged listener
+    } catch (err: any) {
+        console.error(err);
+        if (err.code === 'auth/invalid-credential') {
+            setError('Email ou senha incorretos.');
+        } else if (err.code === 'auth/too-many-requests') {
+            setError('Muitas tentativas. Tente novamente mais tarde.');
+        } else if (err.message === "Firebase não configurado.") {
+             setError("Erro de configuração: Adicione suas chaves do Firebase em lib/firebase.ts");
+        } else {
+            setError('Erro ao fazer login. Tente novamente.');
+        }
+        setIsLoading(false);
     }
   };
 
@@ -93,7 +96,6 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate, onLogin }) => {
                   onClick={() => handleSocialLogin('google')}
                   className={`w-full flex items-center justify-center gap-3 py-3 rounded-xl font-medium transition-colors ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-gray-200' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
                 >
-                   {/* Simulating Google G Logo */}
                    <span className="font-bold text-lg text-blue-500">G</span>
                     Entrar com o Google
                 </button>
@@ -113,11 +115,10 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate, onLogin }) => {
                       value={email}
                       onChange={(e) => {
                         setEmail(e.target.value);
-                        if (emailError) setEmailError('');
+                        if (error) setError('');
                       }}
-                      className={`w-full border rounded px-4 py-3 focus:outline-none focus:ring-2 transition-colors bg-transparent ${emailError ? 'border-red-500 focus:ring-red-200' : (isDarkMode ? 'border-slate-700 focus:border-blue-500 focus:ring-blue-900 text-white' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-100')}`}
+                      className={`w-full border rounded px-4 py-3 focus:outline-none focus:ring-2 transition-colors bg-transparent ${error ? 'border-red-500 focus:ring-red-200' : (isDarkMode ? 'border-slate-700 focus:border-blue-500 focus:ring-blue-900 text-white' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-100')}`}
                     />
-                    {emailError && <p className="text-red-500 text-sm mt-1">{emailError}</p>}
                 </div>
                 <div>
                     <label className={`block text-base font-medium mb-1 ${isDarkMode ? 'text-slate-300' : 'text-gray-700'}`}>Senha</label>
@@ -129,9 +130,15 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate, onLogin }) => {
                     />
                 </div>
 
+                {error && <p className="text-red-500 text-sm text-center animate-pulse bg-red-50 p-2 rounded border border-red-100 dark:bg-red-900/20 dark:border-red-800">{error}</p>}
+
                 <div className="flex justify-center pt-4">
-                    <button type="submit" className="w-40 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-full transition-colors shadow-lg active:scale-95 transform">
-                        Entrar
+                    <button 
+                        type="submit" 
+                        disabled={isLoading}
+                        className={`w-40 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-full transition-colors shadow-lg active:scale-95 transform flex items-center justify-center gap-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    >
+                        {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Entrar'}
                     </button>
                 </div>
             </form>

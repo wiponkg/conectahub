@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User as UserIcon, AlertTriangle, PartyPopper, Send, AlertCircle, RefreshCw } from 'lucide-react';
+import { User as UserIcon, AlertTriangle, PartyPopper, Send, AlertCircle, RefreshCw, Bell, Star } from 'lucide-react';
 import { User } from '../types';
 import { useTheme } from '../App';
 
@@ -89,7 +89,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
   };
 
   return (
-    <div className={`p-12 max-w-7xl mx-auto animate-fade-in relative transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+    <div className={`p-8 md:p-12 max-w-7xl mx-auto animate-fade-in relative transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
       <style>{`
         @keyframes slideUp {
           from { opacity: 0; transform: translateY(20px); }
@@ -125,16 +125,16 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
       )}
 
       <div className="mb-10">
-        <h1 className="text-4xl font-bold mb-2">Bem-vinda, {user.name}!</h1>
+        <h1 className="text-3xl md:text-4xl font-bold mb-2">Bem-vinda, {user.name}!</h1>
         <p className={`text-lg ${isDarkMode ? 'text-blue-200' : 'text-blue-600'}`}>Vamos nos manter conectados e informados</p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
         
         {/* Feed Section - Left Column */}
-        <div className="flex-1 space-y-6">
+        <div className="flex-1 w-full space-y-6">
             {/* Input Card */}
-            <div className={`rounded-2xl p-6 flex items-center gap-4 shadow-lg transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'} ${isLoading || error ? 'opacity-75 pointer-events-none' : ''}`}>
+            <div className={`rounded-2xl p-6 flex items-center gap-4 shadow-sm transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'} ${isLoading || error ? 'opacity-75 pointer-events-none' : ''}`}>
                 <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white flex-shrink-0 shadow-md">
                     <UserIcon size={24} />
                 </div>
@@ -179,7 +179,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
                   /* Skeleton Loaders for Posts */
                   <>
                     {[1, 2, 3].map((i) => (
-                      <div key={i} className={`rounded-2xl p-6 shadow-lg animate-pulse ${isDarkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                      <div key={i} className={`rounded-2xl p-6 shadow-sm animate-pulse ${isDarkMode ? 'bg-slate-800' : 'bg-white'}`}>
                         <div className="flex gap-4 mb-4">
                            <div className={`w-12 h-12 rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}></div>
                            <div className="flex-1 space-y-2 py-2">
@@ -198,7 +198,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
                   posts.map((post) => (
                       <div 
                           key={post.id} 
-                          className={`rounded-2xl p-6 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl animate-slide-up ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'}`}
+                          className={`rounded-2xl p-6 shadow-sm transition-all duration-300 hover:shadow-md animate-slide-up ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'}`}
                       >
                           <div className="flex gap-4 mb-4">
                               <div className={`w-12 h-12 ${post.color} rounded-full flex items-center justify-center text-white shadow-md`}>
@@ -217,12 +217,18 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
         </div>
 
         {/* Widgets - Right Column */}
-        <div className="w-full lg:w-96 space-y-6">
+        <div className="w-full lg:w-96 space-y-6 sticky top-8 h-fit">
             {/* Avisos */}
-            <div className={`rounded-2xl p-6 shadow-lg h-auto min-h-[240px] flex flex-col transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'}`}>
-                <h3 className={`text-2xl font-medium mb-6 text-center ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Avisos</h3>
+            <div className={`rounded-2xl p-6 shadow-lg flex flex-col transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'}`}>
+                <div className="flex items-center gap-3 mb-5 pb-4 border-b border-gray-100 dark:border-slate-700">
+                    <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-slate-700 text-yellow-400' : 'bg-orange-50 text-orange-500'}`}>
+                         <Bell size={20} />
+                    </div>
+                    <h3 className={`text-xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Avisos</h3>
+                </div>
+                
                 {isLoading ? (
-                    <div className={`animate-pulse rounded-xl p-4 flex gap-4 items-start ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>
+                    <div className={`animate-pulse rounded-xl p-4 flex gap-4 items-start ${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
                          <div className={`w-10 h-10 rounded-lg shrink-0 ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
                          <div className="flex-1 space-y-2 py-1">
                              <div className={`h-4 rounded w-full ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
@@ -230,35 +236,42 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
                          </div>
                     </div>
                 ) : (
-                   <div className={`rounded-xl p-4 flex gap-4 items-start shadow-sm transition-all duration-300 cursor-pointer hover:shadow-md hover:-translate-y-1 ${isDarkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-50 hover:bg-white border border-gray-100'}`}>
-                        <div className={`p-2 rounded-lg shadow-sm ${isDarkMode ? 'bg-slate-800' : 'bg-white'}`}>
-                           <AlertTriangle className="text-gray-400 fill-gray-400" size={24} />
+                   <div className={`group rounded-xl p-4 flex gap-4 items-start transition-all duration-300 cursor-pointer hover:bg-opacity-80 ${isDarkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-50 hover:bg-blue-50/50'}`}>
+                        <div className={`p-2 rounded-lg shrink-0 ${isDarkMode ? 'bg-slate-800 text-yellow-500' : 'bg-white text-orange-500 shadow-sm'}`}>
+                           <AlertTriangle size={20} />
                         </div>
                         <div>
-                           <h4 className={`font-bold leading-tight mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>Comunicação urgente</h4>
-                           <p className={`text-sm leading-tight ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Nova politica de home office</p>
+                           <h4 className={`font-bold leading-tight mb-1 group-hover:text-blue-600 transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>Comunicação urgente</h4>
+                           <p className={`text-sm leading-tight mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Nova politica de home office</p>
                         </div>
                    </div>
                 )}
             </div>
 
             {/* Reconhecimento */}
-             <div className={`rounded-2xl p-6 shadow-lg h-auto min-h-[200px] flex flex-col transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'}`}>
-                <h3 className={`text-2xl font-medium mb-6 text-center ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Reconhecimento</h3>
+             <div className={`rounded-2xl p-6 shadow-lg flex flex-col transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'}`}>
+                <div className="flex items-center gap-3 mb-5 pb-4 border-b border-gray-100 dark:border-slate-700">
+                    <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-slate-700 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
+                         <Star size={20} />
+                    </div>
+                    <h3 className={`text-xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Reconhecimento</h3>
+                </div>
+
                  {isLoading ? (
-                    <div className={`animate-pulse rounded-xl p-4 flex gap-4 items-start ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>
+                    <div className={`animate-pulse rounded-xl p-4 flex gap-4 items-start ${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
                          <div className={`w-10 h-10 rounded-lg shrink-0 ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
                          <div className="flex-1 py-2">
                              <div className={`h-4 rounded w-3/4 ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}></div>
                          </div>
                     </div>
                  ) : (
-                     <div className={`rounded-xl p-4 flex gap-4 items-start shadow-sm transition-all duration-300 cursor-pointer hover:shadow-md hover:-translate-y-1 ${isDarkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-50 hover:bg-white border border-gray-100'}`}>
-                         <div className={`p-2 rounded-lg shadow-sm ${isDarkMode ? 'bg-slate-800' : 'bg-white'}`}>
-                             <PartyPopper className="text-gray-500" size={24} />
+                     <div className={`group rounded-xl p-4 flex gap-4 items-start transition-all duration-300 cursor-pointer hover:bg-opacity-80 ${isDarkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-50 hover:bg-blue-50/50'}`}>
+                         <div className={`p-2 rounded-lg shrink-0 ${isDarkMode ? 'bg-slate-800 text-purple-400' : 'bg-white text-purple-500 shadow-sm'}`}>
+                             <PartyPopper size={20} />
                          </div>
                          <div>
-                            <h4 className={`font-bold leading-tight ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>Parabéns pela conquista!</h4>
+                            <h4 className={`font-bold leading-tight group-hover:text-blue-600 transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>Parabéns pela conquista!</h4>
+                            <p className={`text-sm leading-tight mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Você bateu a meta de vendas.</p>
                          </div>
                     </div>
                  )}
