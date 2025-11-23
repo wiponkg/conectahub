@@ -113,18 +113,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             </button>
           </div>
 
-          {/* Image Content - Blob Shape + Team */}
+          {/* Image Content - Purple Circle + Team */}
           <div className="relative flex justify-center md:justify-end animate-hero-enter delay-200 mt-12 md:mt-0">
-             {/* Blob Container */}
-             <div 
-                className="relative w-[350px] h-[350px] md:w-[500px] md:h-[500px] bg-[#818CF8] flex items-center justify-center overflow-hidden shadow-2xl -mr-10 border-4 border-white"
-                style={{ borderRadius: '64% 36% 27% 73% / 55% 58% 42% 45%' }}
-             >
+             {/* Purple Circle Container - Larger and offset to match print */}
+             <div className="relative w-[400px] h-[400px] md:w-[650px] md:h-[650px] bg-[#818CF8] rounded-full flex items-center justify-center overflow-hidden shadow-2xl -mr-24 md:-mr-40 border-[6px] border-white">
                 <img 
                     src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2670&auto=format&fit=crop" 
                     alt="Team collaboration" 
                     className="w-full h-full object-cover opacity-95"
-                    style={{ objectPosition: 'center 20%' }}
+                    style={{ objectPosition: 'center 25%', transform: 'scale(1.1)' }}
                 />
              </div>
           </div>
@@ -133,6 +130,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         {/* Bottom Geometric Shape - Refined Grey Valley Curve */}
         <div className="absolute bottom-0 left-0 right-0 h-24 md:h-32 w-full z-20">
              <svg viewBox="0 0 1440 120" className="w-full h-full object-cover" preserveAspectRatio="none">
+                {/* 
+                    Smoother curve to align with text/image columns:
+                    M0,0 - Start Top Left
+                    Q720,90 - Control point center, dipping down nicely but not too deep
+                    1440,0 - End Top Right
+                    L1440,120 L0,120 Z - Close bottom
+                */}
                 <path fill="#BCC1D1" fillOpacity="1" d="M0,0 Q720,90 1440,0 L1440,120 L0,120 Z" />
             </svg>
         </div>
@@ -246,9 +250,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           </div>
           
            {/* White Wave Shape */}
+           {/* Rises from left to right with a specific curve to intersect cards */}
            <div className="absolute bottom-0 left-0 right-0 w-full h-[400px] pointer-events-none z-0 flex items-end">
              <svg viewBox="0 0 1440 320" className="w-full h-full object-cover" preserveAspectRatio="none">
-                <path fill="#f3f4f6" fillOpacity="1" d="M0,320 L0,280 Q720,140 1440,280 L1440,320 Z"></path>
+                {/* 
+                    Adjusted Wave Path:
+                    M0,320 - Start bottom left
+                    L0,260 - Start height on left (cutting through Calc)
+                    Q720,50 - Peak high in the middle (behind Users)
+                    1440,120 - End height on right (behind Gamepad)
+                    L1440,320 - Close bottom right
+                */}
+                <path fill="#f3f4f6" fillOpacity="1" d="M0,320 L0,260 Q720,50 1440,120 L1440,320 Z"></path>
             </svg>
         </div>
       </section>
