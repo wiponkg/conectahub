@@ -5,10 +5,18 @@ type QuizStep = 'INTRO' | 'QUESTION' | 'RESULT';
 
 export const QuizPage: React.FC = () => {
   const [step, setStep] = useState<QuizStep>('INTRO');
+  const [isExiting, setIsExiting] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
 
   const handleNext = () => {
-    if (step === 'INTRO') setStep('QUESTION');
+    if (step === 'INTRO') {
+        setIsExiting(true);
+        // Wait for the transition (700ms) to complete before switching views
+        setTimeout(() => {
+            setStep('QUESTION');
+            setIsExiting(false);
+        }, 700);
+    }
     else if (step === 'QUESTION' && selectedOption) setStep('RESULT');
     else if (step === 'RESULT') {
         setStep('INTRO');
@@ -27,7 +35,7 @@ export const QuizPage: React.FC = () => {
   });
 
   return (
-    <div className="w-full min-h-screen relative bg-white overflow-hidden font-sans">
+    <div className="w-full min-h-screen relative bg-white overflow-hidden font-sans animate-fade-in">
        
        {/* INTRO SCREEN */}
        {step === 'INTRO' && (
@@ -35,10 +43,13 @@ export const QuizPage: React.FC = () => {
                {/* Dark Blue Shape */}
                {/* Polygon: Top-Left, Top-Right, Bottom-Right, Left-Mid */}
                {/* This creates a diagonal that goes DOWN from left to right */}
+               {/* We animate the clipPath to cover the full screen (0 0%) on exit */}
                <div 
-                  className="absolute inset-0 bg-brand-dark z-0 shadow-2xl"
+                  className="absolute inset-0 bg-brand-dark z-0 shadow-2xl transition-all duration-700 ease-in-out"
                   style={{ 
-                    clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 40%)' 
+                    clipPath: isExiting 
+                        ? 'polygon(0 0, 100% 0, 100% 100%, 0 0%)' 
+                        : 'polygon(0 0, 100% 0, 100% 100%, 0 40%)' 
                   }}
                />
                
@@ -46,17 +57,18 @@ export const QuizPage: React.FC = () => {
                {dots.map((pos, i) => (
                   <div 
                     key={i}
-                    className="absolute w-14 h-14 bg-[#E5E7EB] rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.15)] z-10"
+                    className={`absolute w-14 h-14 bg-[#E5E7EB] rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.15)] z-10 transition-all duration-500 ease-in-out ${isExiting ? 'opacity-0 scale-0' : 'opacity-100 scale-100'}`}
                     style={{ 
                         left: pos.left, 
                         top: pos.top,
-                        transform: 'translate(-50%, -50%)'
+                        transform: 'translate(-50%, -50%)',
+                        transitionDelay: `${i * 50}ms`
                     }}
                   />
                ))}
 
                {/* Content */}
-               <div className="relative z-20 w-full h-full min-h-screen flex flex-col items-end justify-center pr-12 md:pr-24 pb-32">
+               <div className={`relative z-20 w-full h-full min-h-screen flex flex-col items-end justify-center pr-12 md:pr-24 pb-32 transition-all duration-500 ${isExiting ? 'opacity-0 translate-x-20' : 'opacity-100 translate-x-0'}`}>
                   <div className="text-right flex flex-col items-end space-y-8">
                     <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
                         Interaja conosco e <br/>
@@ -76,10 +88,10 @@ export const QuizPage: React.FC = () => {
        {/* QUESTION & RESULT SCREENS */}
        {step !== 'INTRO' && (
          <div className="absolute inset-0 bg-brand-dark flex items-center justify-center p-4 md:p-8">
-            <div className="bg-[#F3F4F6] w-full max-w-5xl rounded-[2.5rem] p-8 md:p-16 shadow-2xl relative min-h-[600px] flex flex-col justify-between animate-fade-in">
+            <div className="bg-[#F3F4F6] w-full max-w-5xl rounded-[2.5rem] p-8 md:p-16 shadow-2xl relative min-h-[600px] flex flex-col justify-between animate-pop-in">
                 
                 {step === 'QUESTION' && (
-                    <div className="flex-1 flex flex-col justify-center">
+                    <div className="flex-1 flex flex-col justify-center animate-fade-in">
                         <h2 className="text-3xl md:text-4xl font-bold text-gray-400 mb-12 leading-snug">
                             Qual aba concentra o calendário com <br className="hidden md:block"/>
                             reuniões, treinamentos e aniversários da <br className="hidden md:block"/>
@@ -87,7 +99,7 @@ export const QuizPage: React.FC = () => {
                         </h2>
                         
                         <div className="space-y-6 pl-2">
-                            {['A) Feed', 'B) Calendário', 'C) Chat', 'D) Ranking'].map((opt) => {
+                            {['A) Feed', 'B) Calendário', 'C) Chat', 'D) Ranking'].map((opt, idx) => {
                                 const isSelected = selectedOption === opt;
                                 return (
                                     <div 
@@ -96,6 +108,7 @@ export const QuizPage: React.FC = () => {
                                         className={`text-2xl md:text-3xl font-bold cursor-pointer transition-all duration-200 ${
                                             isSelected ? 'text-gray-900 scale-[1.01] origin-left' : 'text-gray-400 hover:text-gray-500'
                                         }`}
+                                        style={{ animationDelay: `${idx * 100}ms` }}
                                     >
                                         {opt}
                                     </div>

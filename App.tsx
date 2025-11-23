@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, createContext, useContext } from 'react';
 import { LandingPage } from './components/LandingPage';
 import { LoginPage } from './components/LoginPage';
 import { RegisterPage } from './components/RegisterPage';
@@ -10,9 +10,27 @@ import { CalendarPage } from './components/CalendarPage';
 import { QuizPage } from './components/QuizPage';
 import { ViewState, User, DEFAULT_USER } from './types';
 
+// Theme Context Definition
+interface ThemeContextType {
+  isDarkMode: boolean;
+  toggleTheme: () => void;
+}
+
+const ThemeContext = createContext<ThemeContextType>({
+  isDarkMode: false,
+  toggleTheme: () => {},
+});
+
+export const useTheme = () => useContext(ThemeContext);
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('LANDING');
   const [currentUser, setCurrentUser] = useState<User>(DEFAULT_USER);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const toggleTheme = () => {
+    setIsDarkMode((prev) => !prev);
+  };
 
   const navigateTo = (view: ViewState) => {
     window.scrollTo(0, 0);
@@ -93,9 +111,11 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-white">
-      {renderView()}
-    </div>
+    <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
+      <div className={`min-h-screen w-full ${isDarkMode ? 'bg-brand-dark' : 'bg-white'}`}>
+        {renderView()}
+      </div>
+    </ThemeContext.Provider>
   );
 };
 
