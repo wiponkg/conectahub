@@ -4,8 +4,9 @@ import { ViewState } from '../types';
 import { Logo } from './Logo';
 import { Sun, Moon, Loader2 } from 'lucide-react';
 import { useTheme } from '../App';
-import { auth } from '../lib/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '../lib/firebase';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AuthProps {
   onNavigate: (view: ViewState) => void;
@@ -19,8 +20,45 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
   const [isLoading, setIsLoading] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
 
-  const handleSocialLogin = (provider: 'apple' | 'google') => {
-    alert("Para login social, configure os provedores no Firebase Console.");
+  const handleSocialLogin = async (providerName: 'apple' | 'google') => {
+    if (providerName === 'apple') {
+        alert("Login com Apple requer configuração adicional de certificado.");
+        return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+        const provider = new GoogleAuthProvider();
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        // Verificar se o usuário já tem perfil no Firestore
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (!userDoc.exists()) {
+            // Se for o primeiro acesso via Google, cria o perfil básico
+            await setDoc(userDocRef, {
+                name: user.displayName || 'Usuário Google',
+                email: user.email,
+                role: 'Colaborador',
+                avatar: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'G'}&background=random`,
+                createdAt: new Date().toISOString()
+            });
+        }
+
+        // O redirecionamento é tratado automaticamente pelo onAuthStateChanged no App.tsx
+    } catch (err: any) {
+        console.error("Google Login Error:", err);
+        if (err.code === 'auth/popup-closed-by-user') {
+            setError('O login foi cancelado.');
+        } else {
+            setError('Erro ao conectar com Google. Tente novamente.');
+        }
+        setIsLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,6 +86,14 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
         console.error(err);
         if (err.code === 'auth/invalid-credential') {
             setError('Email ou senha incorretos.');
+        } else if (err.code === 'auth/user-not-found') {
+            // Se o usuário não existe, redireciona para o cadastro
+            setError('Email não cadastrado. Redirecionando para o cadastro...');
+            setTimeout(() => {
+                onNavigate('REGISTER');
+            }, 1500);
+            setIsLoading(false);
+            return;
         } else if (err.code === 'auth/too-many-requests') {
             setError('Muitas tentativas. Tente novamente mais tarde.');
         } else if (err.message === "Firebase não configurado.") {
@@ -94,6 +140,7 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
                  <button 
                   type="button"
                   onClick={() => handleSocialLogin('google')}
+                  disabled={isLoading}
                   className={`w-full flex items-center justify-center gap-3 py-3 rounded-xl font-medium transition-colors ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-gray-200' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
                 >
                    <span className="font-bold text-lg text-blue-500">G</span>
