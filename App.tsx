@@ -1,4 +1,3 @@
-
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import { LandingPage } from './components/LandingPage';
 import { LoginPage } from './components/LoginPage';
@@ -11,7 +10,7 @@ import { QuizPage } from './components/QuizPage';
 import { ViewState, User, DEFAULT_USER } from './types';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 // Theme Context Definition
 interface ThemeContextType {
@@ -43,7 +42,15 @@ const App: React.FC = () => {
         return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let userUnsubscribe: (() => void) | null = null;
+
+    const authUnsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        // Cleanup previous user listener if it exists
+        if (userUnsubscribe) {
+            userUnsubscribe();
+            userUnsubscribe = null;
+        }
+
         if (firebaseUser) {
             // 1. Set basic user immediately using Auth data to unblock UI
             const userProfile: User = {
@@ -54,9 +61,13 @@ const App: React.FC = () => {
 
             setCurrentUser(userProfile);
 
-            // Redirect to dashboard if on public page
+            // Redirect logic
             setCurrentView((prevView) => {
-                if (['LANDING', 'LOGIN', 'REGISTER'].includes(prevView)) {
+                // Do not auto-redirect if on REGISTER to allow registration flow to complete
+                if (prevView === 'REGISTER') {
+                    return prevView;
+                }
+                if (['LANDING', 'LOGIN'].includes(prevView)) {
                     return 'DASHBOARD_HOME';
                 }
                 return prevView;
@@ -65,33 +76,35 @@ const App: React.FC = () => {
             // Stop global loading immediately so user sees the dashboard
             setIsLoading(false);
 
+            // 2. Listen to Firestore updates (Robust against offline/network issues)
             try {
-                // 2. Fetch additional profile data from Firestore in background
                 const userDocRef = doc(db, 'users', firebaseUser.uid);
-                const userDoc = await getDoc(userDocRef);
-
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
-                    // Merge Firestore data safely
-                    setCurrentUser(prev => {
-                        if (!prev) return null; // Safety check if logged out during fetch
-                        return {
-                            ...prev,
-                            name: userData.name || prev.name,
-                            avatar: userData.avatar || prev.avatar,
-                            role: userData.role || prev.role
-                        };
-                    });
-                } 
+                userUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const userData = docSnap.data();
+                        setCurrentUser(prev => {
+                            if (!prev) return null; // Safety check
+                            return {
+                                ...prev,
+                                name: userData.name || prev.name,
+                                avatar: userData.avatar || prev.avatar,
+                                role: userData.role || prev.role
+                            };
+                        });
+                    } 
+                }, (error) => {
+                    // Quietly log error, user still has basic Auth profile
+                    console.warn("Firestore sync warning:", error.message);
+                });
             } catch (error) {
-                console.error("Error fetching user data:", error);
-                // No need to block UI, we already showed the dashboard with basic data
+                console.error("Error setting up Firestore listener:", error);
             }
 
         } else {
             // User is signed out
             setCurrentUser(null);
-            // If on a private route, redirect to Landing
+            
+            // Redirect to Landing if on a private route
             setCurrentView((prevView) => {
                 if (!['LANDING', 'LOGIN', 'REGISTER'].includes(prevView)) {
                     return 'LANDING';
@@ -102,7 +115,10 @@ const App: React.FC = () => {
         }
     });
 
-    return () => unsubscribe();
+    return () => {
+        authUnsubscribe();
+        if (userUnsubscribe) userUnsubscribe();
+    };
   }, []); // Only run once on mount
 
   const navigateTo = (view: ViewState) => {

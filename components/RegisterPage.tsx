@@ -78,12 +78,17 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
         // 3. Sign out immediately to force manual login
         await signOut(auth);
 
-        // 4. Navigate to Login Page
+        // 4. Stop loading before alert/navigation to avoid stuck UI
+        setIsLoading(false);
+
+        // 5. Navigate to Login Page
         alert("Conta criada com sucesso! Por favor, faça login.");
         onNavigate('LOGIN');
 
     } catch (err: any) {
         console.error(err);
+        setIsLoading(false);
+        
         if (err.code === 'auth/email-already-in-use') {
             setError('Este email já está em uso.');
         } else if (err.code === 'auth/invalid-email') {
@@ -93,8 +98,6 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
         } else {
             setError('Ocorreu um erro ao criar a conta. Tente novamente.');
         }
-    } finally {
-        setIsLoading(false);
     }
   };
 
