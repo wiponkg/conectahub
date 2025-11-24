@@ -45,42 +45,61 @@ const App: React.FC = () => {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
+            // 1. Set basic user immediately using Auth data to unblock UI
+            const userProfile: User = {
+                name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
+                avatar: firebaseUser.photoURL || DEFAULT_USER.avatar,
+                role: 'Colaborador'
+            };
+
+            setCurrentUser(userProfile);
+
+            // Redirect to dashboard if on public page
+            setCurrentView((prevView) => {
+                if (['LANDING', 'LOGIN', 'REGISTER'].includes(prevView)) {
+                    return 'DASHBOARD_HOME';
+                }
+                return prevView;
+            });
+
+            // Stop global loading immediately so user sees the dashboard
+            setIsLoading(false);
+
             try {
-                // User is signed in, fetch additional profile data from Firestore
+                // 2. Fetch additional profile data from Firestore in background
                 const userDocRef = doc(db, 'users', firebaseUser.uid);
                 const userDoc = await getDoc(userDocRef);
 
                 if (userDoc.exists()) {
                     const userData = userDoc.data();
-                    setCurrentUser({
-                        name: userData.name || 'Usuário',
-                        avatar: userData.avatar || DEFAULT_USER.avatar,
-                        role: userData.role || 'Colaborador'
+                    // Merge Firestore data safely
+                    setCurrentUser(prev => {
+                        if (!prev) return null; // Safety check if logged out during fetch
+                        return {
+                            ...prev,
+                            name: userData.name || prev.name,
+                            avatar: userData.avatar || prev.avatar,
+                            role: userData.role || prev.role
+                        };
                     });
-                } else {
-                    // Fallback if no firestore doc exists
-                    setCurrentUser({
-                        name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
-                        avatar: firebaseUser.photoURL || DEFAULT_USER.avatar,
-                        role: 'Colaborador'
-                    });
-                }
-                // Only redirect to dashboard if we are on a public page
-                if (['LANDING', 'LOGIN', 'REGISTER'].includes(currentView)) {
-                    setCurrentView('DASHBOARD_HOME');
-                }
+                } 
             } catch (error) {
                 console.error("Error fetching user data:", error);
+                // No need to block UI, we already showed the dashboard with basic data
             }
+
         } else {
             // User is signed out
             setCurrentUser(null);
             // If on a private route, redirect to Landing
-            if (!['LANDING', 'LOGIN', 'REGISTER'].includes(currentView)) {
-                setCurrentView('LANDING');
-            }
+            setCurrentView((prevView) => {
+                if (!['LANDING', 'LOGIN', 'REGISTER'].includes(prevView)) {
+                    return 'LANDING';
+                }
+                return prevView;
+            });
+            setIsLoading(false);
         }
-        setIsLoading(false);
     });
 
     return () => unsubscribe();
