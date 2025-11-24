@@ -13,17 +13,11 @@ const firebaseConfig = {
   measurementId: "G-R7SM6734M6"
 };
 
-// Initialize Firebase
-let app;
-let auth;
-let db;
+// Inicializa o Firebase
+const app = initializeApp(firebaseConfig);
 
-try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-} catch (error) {
-  console.error("Erro ao inicializar Firebase:", error);
-}
+// Exporta os serviços de Autenticação e Banco de Dados para uso no app
+export const auth = getAuth(app);
+export const db = getFirestore(app);
 
-export { auth, db };
+export default app;
