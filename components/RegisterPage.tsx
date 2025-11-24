@@ -5,7 +5,7 @@ import { Logo } from './Logo';
 import { Sun, Moon, Loader2 } from 'lucide-react';
 import { useTheme } from '../App';
 import { auth, db } from '../lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
 interface AuthProps {
@@ -16,7 +16,7 @@ interface AuthProps {
 export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
   const [formData, setFormData] = useState({
     name: '',
-    email: '', // Changed CPF to Email for standard Firebase Auth
+    email: '',
     password: '',
     confirmPassword: ''
   });
@@ -75,9 +75,12 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
             createdAt: new Date().toISOString()
         });
 
-        // App.tsx handles the state change automatically via onAuthStateChanged
-        // But we can navigate immediately
-        onNavigate('DASHBOARD_HOME');
+        // 3. Sign out immediately to force manual login
+        await signOut(auth);
+
+        // 4. Navigate to Login Page
+        alert("Conta criada com sucesso! Por favor, faça login.");
+        onNavigate('LOGIN');
 
     } catch (err: any) {
         console.error(err);

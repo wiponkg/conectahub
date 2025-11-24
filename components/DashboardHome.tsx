@@ -132,7 +132,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
       <div className="flex flex-col lg:flex-row gap-8 items-start">
         
         {/* Feed Section - Left Column */}
-        <div className="flex-1 w-full space-y-6">
+        <div id="main-feed" className="flex-1 w-full space-y-6">
             {/* Input Card */}
             <div className={`rounded-2xl p-6 flex items-center gap-4 shadow-sm transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'} ${isLoading || error ? 'opacity-75 pointer-events-none' : ''}`}>
                 <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white flex-shrink-0 shadow-md">
@@ -217,7 +217,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
         </div>
 
         {/* Widgets - Right Column */}
-        <div className="w-full lg:w-96 space-y-6 sticky top-8 h-fit">
+        <div id="dashboard-widgets" className="w-full lg:w-96 space-y-6 sticky top-8 h-fit">
             {/* Avisos */}
             <div className={`rounded-2xl p-6 shadow-lg flex flex-col transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'}`}>
                 <div className="flex items-center gap-3 mb-5 pb-4 border-b border-gray-100 dark:border-slate-700">

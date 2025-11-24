@@ -4,6 +4,7 @@ import { ViewState, User } from '../types';
 import { Logo } from './Logo';
 import { Home, Calendar, Trophy, MessageSquare, HelpCircle, LogOut, UserCog, Camera, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../App';
+import { OnboardingTour } from './OnboardingTour';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -14,11 +15,31 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, currentView, onNavigate, user }) => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
   
   // Initialize local avatar state from the user prop
   const [avatar, setAvatar] = useState(user.avatar);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Check for first-time user
+  useEffect(() => {
+    const hasSeenTour = localStorage.getItem('conectahub_tour_completed');
+    if (!hasSeenTour) {
+        // Small delay to allow rendering
+        setTimeout(() => setIsTourOpen(true), 1000);
+    }
+  }, []);
+
+  const handleCloseTour = () => {
+      setIsTourOpen(false);
+      localStorage.setItem('conectahub_tour_completed', 'true');
+  };
+
+  const handleRestartTour = () => {
+      setIsProfileMenuOpen(false);
+      setIsTourOpen(true);
+  };
   
   // Update local avatar if the user prop changes (e.g. re-login)
   useEffect(() => {
@@ -51,6 +72,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, curr
 
   return (
     <div className={`flex min-h-screen font-sans transition-colors duration-300 ${isDarkMode ? 'bg-slate-950' : 'bg-gray-50'}`}>
+      
+      <OnboardingTour isOpen={isTourOpen} onClose={handleCloseTour} />
+
       {/* Sidebar */}
       <aside className={`w-64 flex flex-col py-8 px-6 fixed h-full z-30 shadow-xl rounded-r-3xl transition-colors duration-300 ${isDarkMode ? 'bg-slate-900 border-r border-slate-800' : 'bg-white border-r border-gray-100'}`}>
         <div className="mb-10 px-2">
@@ -59,6 +83,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, curr
 
         <div className="flex flex-col items-center gap-3 mb-10 relative">
             <button 
+                id="user-profile-btn"
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                 className="relative group focus:outline-none"
             >
@@ -105,6 +130,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, curr
                         <UserCog size={18} /> Editar perfil
                     </button>
                     <button
+                        className={`flex items-center gap-3 px-4 py-3 w-full text-left transition-colors ${isDarkMode ? 'hover:bg-slate-700 hover:text-blue-400 text-gray-300' : 'hover:bg-gray-50 hover:text-blue-600 text-gray-600'}`}
+                        onClick={handleRestartTour}
+                    >
+                        <HelpCircle size={18} /> Reiniciar Tour
+                    </button>
+                    <button
                         onClick={() => onNavigate('LANDING')}
                         className={`flex items-center gap-3 px-4 py-3 text-red-600 w-full text-left transition-colors border-t mt-1 ${isDarkMode ? 'border-slate-700 hover:bg-slate-700' : 'border-gray-50 hover:bg-red-50'}`}
                     >
@@ -114,7 +145,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, curr
             )}
         </div>
 
-        <nav className="space-y-2 flex-1 relative z-10">
+        <nav id="sidebar-nav" className="space-y-2 flex-1 relative z-10">
             {menuItems.map((item) => (
                 <button
                     key={item.label}
