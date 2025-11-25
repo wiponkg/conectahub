@@ -1,4 +1,3 @@
-
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import { LandingPage } from './components/LandingPage';
 import { LoginPage } from './components/LoginPage';
@@ -57,7 +56,8 @@ const App: React.FC = () => {
           department: firestoreData.department || '',
           phone: firestoreData.phone || '',
           points: firestoreData.points || 0,
-          completedMissions: firestoreData.completedMissions || []
+          completedMissions: firestoreData.completedMissions || [],
+          hasSeenTour: firestoreData.hasSeenTour || false
       };
   };
 

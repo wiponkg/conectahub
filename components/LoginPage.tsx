@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
 import { Logo } from './Logo';

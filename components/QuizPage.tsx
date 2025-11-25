@@ -171,44 +171,86 @@ export const QuizPage: React.FC<QuizPageProps> = ({ user, onNavigate }) => {
         {gameState === 'HUB' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Main Feature: Quiz */}
-                <div className={`lg:col-span-2 rounded-3xl p-8 relative overflow-hidden shadow-xl transition-all hover:scale-[1.01] group cursor-pointer ${isDarkMode ? 'bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/30' : 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white'}`} onClick={handleStartQuiz}>
-                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/20 transition-colors"></div>
+                <div className={`lg:col-span-2 rounded-3xl p-8 relative overflow-hidden shadow-xl transition-all hover:scale-[1.005] group cursor-pointer flex flex-col justify-between min-h-[300px] ${isDarkMode ? 'bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/30' : 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white'}`} onClick={handleStartQuiz}>
+                     <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/20 transition-colors"></div>
                      
                      <div className="relative z-10">
-                        <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold mb-4 border border-white/20">
+                        <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold mb-6 border border-white/20">
                             <BrainCircuit size={14} />
                             <span>DESTAQUE DO DIA</span>
                         </div>
-                        <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">Quiz da Cultura:<br/>Edição Semanal</h2>
-                        <p className="text-blue-100 mb-8 max-w-md text-sm md:text-base">
+                        <h2 className="text-3xl md:text-5xl font-bold mb-4 leading-tight">Quiz da Cultura:<br/>Edição Semanal</h2>
+                        <p className="text-blue-100 mb-8 max-w-lg text-base md:text-lg leading-relaxed">
                             Teste seus conhecimentos sobre os novos processos de RH e ganhe pontos extras para o ranking mensal.
                         </p>
-                        <button className="bg-white text-blue-700 px-8 py-3 rounded-full font-bold hover:bg-blue-50 transition-colors shadow-lg flex items-center gap-2">
+                     </div>
+                     
+                     <div className="relative z-10 mt-auto">
+                        <button className="bg-white text-blue-700 px-8 py-3.5 rounded-full font-bold hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl flex items-center gap-2 active:scale-95 w-fit">
                             Começar Agora <ArrowRight size={18} />
                         </button>
                      </div>
                 </div>
 
-                {/* Missions List */}
-                <div className="space-y-4">
-                    <h3 className="font-bold text-lg mb-2">Missões Disponíveis</h3>
+                {/* Missions List (Cards) */}
+                <div className="flex flex-col gap-5">
+                    <div className="flex items-center justify-between mb-1">
+                        <h3 className="font-bold text-lg">Missões Disponíveis</h3>
+                    </div>
+                    
                     {STATIC_MISSIONS.map((mission) => {
                         const isCompleted = isMissionCompleted(mission.id);
                         return (
-                            <div key={mission.id} className={`p-4 rounded-2xl flex items-center gap-4 transition-all border ${isCompleted ? (isDarkMode ? 'bg-slate-800/50 border-green-900/50 opacity-60' : 'bg-green-50 border-green-100 opacity-60') : (isDarkMode ? 'bg-slate-800 border-slate-700 hover:border-slate-500' : 'bg-white border-gray-100 hover:border-gray-300 hover:shadow-md')}`}>
-                                <div className={`p-3 rounded-xl ${mission.color} text-white shadow-md`}>
-                                    <mission.icon size={20} />
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="font-bold text-sm">{mission.title}</h4>
-                                    <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{mission.description}</p>
-                                </div>
-                                <div className="text-right">
+                            <div 
+                                key={mission.id} 
+                                className={`group relative p-5 rounded-2xl border transition-all duration-300 hover:shadow-lg flex flex-col gap-4 ${
+                                    isCompleted 
+                                        ? (isDarkMode ? 'bg-slate-800/50 border-green-900/50' : 'bg-green-50/50 border-green-100') 
+                                        : (isDarkMode ? 'bg-slate-800 border-slate-700 hover:border-slate-500' : 'bg-white border-gray-100 hover:border-blue-200')
+                                }`}
+                            >
+                                {/* Card Header */}
+                                <div className="flex justify-between items-start">
+                                    <div className={`p-3 rounded-xl ${mission.color} text-white shadow-md transform group-hover:scale-110 transition-transform duration-300`}>
+                                        <mission.icon size={22} />
+                                    </div>
                                     {isCompleted ? (
-                                        <CheckCircle className="text-green-500" size={20} />
+                                        <div className="flex items-center gap-1 text-green-500 font-bold text-xs bg-green-500/10 px-2 py-1 rounded-full border border-green-500/20">
+                                            <CheckCircle size={14} /> <span>Completa</span>
+                                        </div>
                                     ) : (
-                                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>+{mission.points}</span>
+                                        <div className={`text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm ${isDarkMode ? 'bg-slate-700 text-yellow-400 border border-slate-600' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'}`}>
+                                            <Star size={12} fill="currentColor" />
+                                            <span>+{mission.points}</span>
+                                        </div>
                                     )}
+                                </div>
+
+                                {/* Card Body */}
+                                <div>
+                                    <h4 className={`font-bold text-lg mb-1 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{mission.title}</h4>
+                                    <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{mission.description}</p>
+                                </div>
+
+                                {/* Card Footer / Action */}
+                                <div className="mt-auto pt-2">
+                                    <button 
+                                        className={`w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                                            isCompleted 
+                                            ? 'bg-transparent border border-green-200 text-green-600 cursor-default opacity-80' 
+                                            : (isDarkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-gray-50 hover:bg-blue-50 text-blue-600 hover:text-blue-700 border border-gray-100 hover:border-blue-100')
+                                        }`}
+                                        disabled={isCompleted}
+                                        onClick={() => {
+                                            if (!isCompleted) {
+                                                if (mission.id === 'profile') onNavigate('DASHBOARD_PROFILE');
+                                                if (mission.id === 'daily') handleStartQuiz();
+                                            }
+                                        }}
+                                    >
+                                        {isCompleted ? 'Concluído' : 'Ver Detalhes'}
+                                        {!isCompleted && <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />}
+                                    </button>
                                 </div>
                             </div>
                         );

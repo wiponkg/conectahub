@@ -28,18 +28,29 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, curr
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Check for first-time user
+  // Check for first-time user using Firestore data
   useEffect(() => {
-    const hasSeenTour = localStorage.getItem('conectahub_tour_completed');
-    if (!hasSeenTour) {
+    // Only show tour if user hasn't seen it yet
+    if (user && !user.hasSeenTour) {
         // Small delay to allow rendering
-        setTimeout(() => setIsTourOpen(true), 1000);
+        const timer = setTimeout(() => setIsTourOpen(true), 1500);
+        return () => clearTimeout(timer);
     }
-  }, []);
+  }, [user.hasSeenTour]);
 
-  const handleCloseTour = () => {
+  const handleCloseTour = async () => {
       setIsTourOpen(false);
-      localStorage.setItem('conectahub_tour_completed', 'true');
+      // Update Firestore to persist that tour has been seen
+      if (auth.currentUser) {
+          try {
+              const userRef = doc(db, 'users', auth.currentUser.uid);
+              await updateDoc(userRef, {
+                  hasSeenTour: true
+              });
+          } catch (error) {
+              console.error("Error updating tour status:", error);
+          }
+      }
   };
 
   const handleRestartTour = () => {

@@ -11,7 +11,7 @@ export type ViewState =
   | 'DASHBOARD_PROFILE';
 
 export interface User {
-  uid?: string; // Adicionado UID para facilitar updates
+  uid?: string; 
   name: string;
   email?: string;
   avatar: string;
@@ -20,8 +20,9 @@ export interface User {
   jobTitle?: string;
   department?: string;
   phone?: string;
-  points?: number; // Pontuação gamificada
-  completedMissions?: string[]; // IDs das missões já resgatadas
+  points?: number; 
+  completedMissions?: string[]; 
+  hasSeenTour?: boolean; // Novo campo para controle do Tour
 }
 
 export const DEFAULT_USER: User = {
@@ -30,5 +31,6 @@ export const DEFAULT_USER: User = {
   avatar: "", 
   role: "Colaboradora",
   points: 0,
-  completedMissions: []
+  completedMissions: [],
+  hasSeenTour: false
 };

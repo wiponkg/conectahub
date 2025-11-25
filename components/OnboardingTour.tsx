@@ -46,7 +46,16 @@ const TOUR_STEPS: Step[] = [
 export const OnboardingTour: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [coords, setCoords] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const { isDarkMode } = useTheme();
+
+  // Detect mobile
+  useEffect(() => {
+      const checkMobile = () => setIsMobile(window.innerWidth < 768);
+      checkMobile();
+      window.addEventListener('resize', checkMobile);
+      return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Reset step when opened
   useEffect(() => {
@@ -60,10 +69,17 @@ export const OnboardingTour: React.FC<{ isOpen: boolean; onClose: () => void }> 
     if (!isOpen) return;
 
     const updatePosition = () => {
+      // If mobile, we disable targeting to avoid broken UI on hidden elements (like sidebar)
+      if (isMobile) {
+          setCoords(null);
+          return;
+      }
+
       const step = TOUR_STEPS[currentStep];
       if (step.target) {
         const element = document.getElementById(step.target);
-        if (element) {
+        // Only target if element is visible
+        if (element && element.offsetParent !== null) {
           const rect = element.getBoundingClientRect();
           setCoords({
             top: rect.top + window.scrollY,
@@ -74,7 +90,7 @@ export const OnboardingTour: React.FC<{ isOpen: boolean; onClose: () => void }> 
           // Scroll to element if needed
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
-            // Fallback if element not found (e.g. mobile view might hide sidebar)
+            // Fallback if element not found or hidden
             setCoords(null);
         }
       } else {
@@ -90,7 +106,7 @@ export const OnboardingTour: React.FC<{ isOpen: boolean; onClose: () => void }> 
         clearTimeout(timer);
         window.removeEventListener('resize', updatePosition);
     };
-  }, [currentStep, isOpen]);
+  }, [currentStep, isOpen, isMobile]);
 
   if (!isOpen) return null;
 
@@ -113,28 +129,25 @@ export const OnboardingTour: React.FC<{ isOpen: boolean; onClose: () => void }> 
 
   // Calculate Popover Position based on coords and preferred position
   const getPopoverStyle = () => {
-    if (!coords) return {}; // Centered via CSS class
+    if (!coords) return {}; // Centered/Fixed via CSS class
 
     const gap = 12;
-    // Default styles for absolute positioning
     let style: React.CSSProperties = { position: 'absolute' };
 
-    // Simple positioning logic (can be expanded)
     switch(step.position) {
         case 'right':
-            style.top = coords.top + (coords.height / 2) - 100; // rough vertical center offset
+            style.top = coords.top + (coords.height / 2) - 100; 
             style.left = coords.left + coords.width + gap;
             break;
         case 'left':
             style.top = coords.top;
             style.right = window.innerWidth - coords.left + gap;
-            style.left = 'auto'; // Override
+            style.left = 'auto'; 
             break;
         case 'bottom':
         default:
              style.top = coords.top + coords.height + gap;
              style.left = coords.left;
-             // Prevent overflow right
              if (coords.left > window.innerWidth / 2) {
                  style.left = 'auto';
                  style.right = window.innerWidth - (coords.left + coords.width);
@@ -149,8 +162,8 @@ export const OnboardingTour: React.FC<{ isOpen: boolean; onClose: () => void }> 
       {/* Backdrop */}
       <div className="fixed inset-0 z-[60] bg-black/60 transition-opacity duration-300" onClick={onClose} />
 
-      {/* Spotlight Effect (Optional - purely visual overlay cutouts are complex, using high z-index relative container instead) */}
-      {coords && (
+      {/* Spotlight Effect (Desktop only) */}
+      {coords && !isMobile && (
         <div 
             className="absolute z-[61] rounded-xl border-4 border-yellow-400 transition-all duration-300 ease-in-out pointer-events-none shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]"
             style={{
@@ -164,9 +177,13 @@ export const OnboardingTour: React.FC<{ isOpen: boolean; onClose: () => void }> 
 
       {/* Tooltip Card */}
       <div 
-        className={`fixed z-[62] w-80 md:w-96 p-6 rounded-2xl shadow-2xl flex flex-col gap-4 transition-all duration-300 ${isDarkMode ? 'bg-slate-800 text-white' : 'bg-white text-slate-800'}`}
-        style={coords ? getPopoverStyle() : { 
-            top: '50%', left: '50%', transform: 'translate(-50%, -50%)' 
+        className={`fixed z-[62] w-[90%] md:w-96 p-6 rounded-2xl shadow-2xl flex flex-col gap-4 transition-all duration-300 ${isDarkMode ? 'bg-slate-800 text-white' : 'bg-white text-slate-800'}`}
+        style={coords && !isMobile ? getPopoverStyle() : { 
+            // Mobile / Centered Style
+            top: isMobile ? 'auto' : '50%', 
+            left: '50%', 
+            bottom: isMobile ? '24px' : 'auto',
+            transform: isMobile ? 'translateX(-50%)' : 'translate(-50%, -50%)',
         }}
       >
         <div className="flex justify-between items-start">
