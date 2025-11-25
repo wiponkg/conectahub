@@ -10,8 +10,9 @@ interface Post {
   id: string;
   authorName: string;
   authorAvatar: string;
+  authorId?: string; // Added to link post to user
   content: string;
-  createdAt: Timestamp | null; // Pode ser null logo após a criação local antes do sync
+  createdAt: Timestamp | null;
 }
 
 interface DashboardHomeProps {
@@ -89,6 +90,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
             content: newPostText,
             authorName: user.name,
             authorAvatar: user.avatar || "",
+            authorId: user.uid, // Important: Link post to user ID for future updates
             createdAt: serverTimestamp()
         });
 
@@ -189,8 +191,12 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
                         onChange={(e) => setNewPostText(e.target.value)}
                         placeholder="Compartilhe alguma novidade..." 
                         className={`w-full rounded-full py-3 px-6 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner transition-all focus:shadow-md ${isDarkMode ? 'bg-slate-900 text-white border border-slate-700' : 'bg-gray-50 text-gray-700 border border-transparent'}`}
-                        onKeyDown={(e) => e.key === 'Enter' && handlePostSubmit()}
-                        disabled={isLoading}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !isSubmitting && newPostText.trim()) {
+                                confirmPost();
+                            }
+                        }}
+                        disabled={isLoading || isSubmitting}
                     />
                     <button 
                         onClick={handlePostSubmit}

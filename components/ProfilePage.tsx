@@ -2,9 +2,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User } from '../types';
 import { useTheme } from '../App';
-import { Camera, Save, User as UserIcon, Mail, Phone, Briefcase, MapPin, Loader2, CheckCircle } from 'lucide-react';
+import { Camera, Save, User as UserIcon, Mail, Phone, Briefcase, MapPin, Loader2, CheckCircle, Trophy } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, getDocs, writeBatch, updateDoc, increment, arrayUnion } from 'firebase/firestore';
 
 interface ProfilePageProps {
   user: User;
@@ -44,6 +44,16 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
         setImageLoadError(false); // Reseta o erro ao trocar de usuário
     }, [user]);
 
+    // Effect to handle success message timer
+    useEffect(() => {
+        if (successMsg) {
+            const timer = setTimeout(() => {
+                setSuccessMsg('');
+            }, 4000); // Aumentei um pouco o tempo para ler a msg de pontos
+            return () => clearTimeout(timer);
+        }
+    }, [successMsg]);
+
     // Handle Input Changes
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -71,10 +81,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
 
         try {
             if (auth.currentUser) {
-                // Usamos a coleção 'users' para manter consistência com o Login e App.tsx
-                const userRef = doc(db, 'users', auth.currentUser.uid);
-                
-                // setDoc com merge: true cria o documento se não existir, ou atualiza se existir.
+                const uid = auth.currentUser.uid;
+                const userRef = doc(db, 'users', uid);
+
+                // 1. Update User Profile in 'users' collection
                 await setDoc(userRef, {
                     name: formData.name,
                     jobTitle: formData.jobTitle,
@@ -83,11 +93,56 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
                     bio: formData.bio,
                     avatar: avatarPreview
                 }, { merge: true });
+
+                // GAMIFICATION CHECK: Completar Perfil
+                // Critérios: Ter Avatar E Bio preenchida
+                const hasAvatar = avatarPreview && avatarPreview.trim().length > 0;
+                const hasBio = formData.bio && formData.bio.trim().length > 10; // Mínimo de 10 caracteres para considerar "preenchido"
+                const missionId = 'profile';
                 
-                setSuccessMsg('Perfil atualizado com sucesso!');
+                // Verifica se já completou a missão antes (usando a prop user atualizada)
+                const alreadyCompleted = user.completedMissions?.includes(missionId);
+                let pointsAwarded = false;
+
+                if (hasAvatar && hasBio && !alreadyCompleted) {
+                    // Adiciona pontos e marca missão como completa
+                    await updateDoc(userRef, {
+                        points: increment(100), // 100 pontos conforme QuizPage
+                        completedMissions: arrayUnion(missionId)
+                    });
+                    pointsAwarded = true;
+                }
+
+                // 2. Cascade Update: Find all posts by this user and update avatar/name
+                // This ensures the feed reflects the new profile picture immediately.
+                try {
+                    const postsRef = collection(db, "posts");
+                    // Assuming we implemented 'authorId' in DashboardHome posts
+                    const q = query(postsRef, where("authorId", "==", uid));
+                    const querySnapshot = await getDocs(q);
+
+                    if (!querySnapshot.empty) {
+                        const batch = writeBatch(db);
+                        
+                        querySnapshot.forEach((docSnap) => {
+                            batch.update(docSnap.ref, {
+                                authorName: formData.name,
+                                authorAvatar: avatarPreview
+                            });
+                        });
+
+                        await batch.commit();
+                        console.log(`Updated ${querySnapshot.size} posts with new profile info.`);
+                    }
+                } catch (batchError) {
+                    console.error("Error updating past posts:", batchError);
+                }
                 
-                // Clear success message after 3 seconds
-                setTimeout(() => setSuccessMsg(''), 3000);
+                if (pointsAwarded) {
+                    setSuccessMsg('Perfil salvo! +100 Pontos por completar seu perfil! 🏆');
+                } else {
+                    setSuccessMsg('Perfil atualizado com sucesso!');
+                }
             } else {
                 setSuccessMsg('Erro: Usuário não autenticado.');
             }
@@ -228,7 +283,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
                         </div>
 
                         <div className="space-y-2 mb-8">
-                            <label className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Bio / Sobre Você</label>
+                            <label className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Bio / Sobre Você (Mín. 10 caracteres)</label>
                             <textarea 
                                 name="bio"
                                 rows={4}
@@ -277,7 +332,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
                         <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-100 dark:border-slate-700">
                              {successMsg && (
                                 <div className={`flex items-center gap-2 text-sm font-bold animate-pulse ${successMsg.includes('Erro') ? 'text-red-500' : 'text-green-500'}`}>
-                                    {successMsg.includes('Erro') ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}
+                                    {successMsg.includes('Pontos') ? <Trophy size={18} className="text-yellow-500" /> : successMsg.includes('Erro') ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}
                                     {successMsg}
                                 </div>
                              )}
