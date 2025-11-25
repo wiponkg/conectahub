@@ -2,10 +2,10 @@
 import React, { useState } from 'react';
 import { ViewState } from '../types';
 import { Logo } from './Logo';
-import { Sun, Moon, Loader2 } from 'lucide-react';
+import { Sun, Moon, Loader2, Eye, EyeOff, MailWarning, Send } from 'lucide-react';
 import { useTheme } from '../App';
 import { auth, db } from '../lib/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut, sendEmailVerification } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AuthProps {
@@ -16,8 +16,15 @@ interface AuthProps {
 export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // States for Email Verification logic
+  const [showResend, setShowResend] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState('');
+
   const { isDarkMode, toggleTheme } = useTheme();
 
   const handleSocialLogin = async (providerName: 'apple' | 'google') => {
@@ -44,7 +51,8 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
                 name: user.displayName || 'Usuário Google',
                 email: user.email,
                 role: 'Colaborador',
-                avatar: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'G'}&background=random`,
+                // Se Google tiver foto, usa. Se não, string vazia para ativar iniciais.
+                avatar: user.photoURL || "", 
                 createdAt: new Date().toISOString()
             });
         }
@@ -61,10 +69,54 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
     }
   };
 
+  const handleResendVerification = async () => {
+      if (!email || !password) {
+          setError("Digite seu email e senha para reenviar.");
+          return;
+      }
+      
+      setResendLoading(true);
+      setError('');
+      setResendSuccess('');
+
+      try {
+          // Precisamos fazer login temporariamente para ter permissão de enviar o email
+          const userCredential = await signInWithEmailAndPassword(auth, email, password);
+          const user = userCredential.user;
+          
+          if (user.emailVerified) {
+              setResendSuccess("Seu email já está verificado! Tente entrar novamente.");
+              setShowResend(false);
+              // App.tsx will handle redirect eventually, but we force logout to be clean
+              await signOut(auth);
+          } else {
+              const actionCodeSettings = {
+                  url: window.location.origin,
+                  handleCodeInApp: true,
+              };
+              await sendEmailVerification(user, actionCodeSettings);
+              await signOut(auth); // Desloga imediatamente
+              setResendSuccess("Email reenviado! Verifique sua caixa de entrada e spam.");
+              setShowResend(false);
+          }
+      } catch (err: any) {
+          console.error("Resend error:", err);
+          if (err.code === 'auth/too-many-requests') {
+              setError("Muitas tentativas. Aguarde um pouco.");
+          } else {
+              setError("Erro ao reenviar. Verifique seus dados.");
+          }
+      } finally {
+          setResendLoading(false);
+      }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     setError('');
+    setShowResend(false);
+    setResendSuccess('');
 
     if (!email) {
       setError('O campo de email é obrigatório.');
@@ -80,7 +132,18 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
 
     try {
         if (!auth) throw new Error("Firebase não configurado.");
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Check Email Verification
+        if (!user.emailVerified) {
+            await signOut(auth); // Impede que o App.tsx redirecione para dashboard
+            setError('Email não verificado. Verifique sua caixa de entrada e spam.');
+            setShowResend(true);
+            setIsLoading(false);
+            return;
+        }
+
         // Navigation is handled by App.tsx's onAuthStateChanged listener
     } catch (err: any) {
         console.error(err);
@@ -169,20 +232,53 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
                 </div>
                 <div>
                     <label className={`block text-base font-medium mb-1 ${isDarkMode ? 'text-slate-300' : 'text-gray-700'}`}>Senha</label>
-                    <input 
-                      type="password" 
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className={`w-full border bg-transparent rounded px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 transition-colors ${isDarkMode ? 'border-slate-700 focus:ring-blue-900 text-white' : 'border-gray-300 focus:ring-blue-100'}`} 
-                    />
+                    <div className="relative">
+                        <input 
+                          type={showPassword ? "text" : "password"}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className={`w-full border bg-transparent rounded px-4 py-3 pr-12 focus:outline-none focus:border-blue-500 focus:ring-2 transition-colors ${isDarkMode ? 'border-slate-700 focus:ring-blue-900 text-white' : 'border-gray-300 focus:ring-blue-100'}`} 
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                    </div>
                 </div>
 
-                {error && <p className="text-red-500 text-sm text-center animate-pulse bg-red-50 p-2 rounded border border-red-100 dark:bg-red-900/20 dark:border-red-800">{error}</p>}
+                {error && (
+                    <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-100 dark:border-red-800 animate-pulse">
+                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm font-medium justify-center">
+                            <MailWarning size={16} />
+                            {error}
+                        </div>
+                        {showResend && (
+                             <button 
+                                type="button"
+                                onClick={handleResendVerification}
+                                disabled={resendLoading}
+                                className="mt-2 w-full flex items-center justify-center gap-2 text-xs text-blue-600 dark:text-blue-400 hover:underline font-bold"
+                             >
+                                 {resendLoading ? <Loader2 className="animate-spin" size={12} /> : <Send size={12} />}
+                                 {resendLoading ? 'Enviando...' : 'Reenviar email de verificação'}
+                             </button>
+                        )}
+                    </div>
+                )}
+                
+                {resendSuccess && (
+                    <p className="text-green-600 text-sm text-center bg-green-50 p-2 rounded border border-green-100 dark:bg-green-900/20 dark:border-green-800">
+                        {resendSuccess}
+                    </p>
+                )}
 
                 <div className="flex justify-center pt-4">
                     <button 
                         type="submit" 
-                        disabled={isLoading}
+                        disabled={isLoading || resendLoading}
                         className={`w-40 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-full transition-colors shadow-lg active:scale-95 transform flex items-center justify-center gap-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
                         {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Entrar'}

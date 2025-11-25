@@ -1,3 +1,4 @@
+
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import { LandingPage } from './components/LandingPage';
 import { LoginPage } from './components/LoginPage';
@@ -7,6 +8,7 @@ import { DashboardHome } from './components/DashboardHome';
 import { RankingPage } from './components/RankingPage';
 import { CalendarPage } from './components/CalendarPage';
 import { QuizPage } from './components/QuizPage';
+import { ProfilePage } from './components/ProfilePage';
 import { ViewState, User, DEFAULT_USER } from './types';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -44,7 +46,7 @@ const App: React.FC = () => {
 
     let userUnsubscribe: (() => void) | null = null;
 
-    const authUnsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         // Cleanup previous user listener if it exists
         if (userUnsubscribe) {
             userUnsubscribe();
@@ -52,11 +54,24 @@ const App: React.FC = () => {
         }
 
         if (firebaseUser) {
+            // SECURITY CHECK: Email Verification
+            if (!firebaseUser.emailVerified) {
+                // Force logout if email is not verified
+                await signOut(auth);
+                setCurrentUser(null);
+                setIsLoading(false);
+                return;
+            }
+
             // 1. Set basic user immediately using Auth data to unblock UI
             const userProfile: User = {
+                uid: firebaseUser.uid,
                 name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
+                email: firebaseUser.email || '',
                 avatar: firebaseUser.photoURL || DEFAULT_USER.avatar,
-                role: 'Colaborador'
+                role: 'Colaborador',
+                points: 0,
+                completedMissions: []
             };
 
             setCurrentUser(userProfile);
@@ -84,11 +99,27 @@ const App: React.FC = () => {
                         const userData = docSnap.data();
                         setCurrentUser(prev => {
                             if (!prev) return null; // Safety check
+                            
+                            let newAvatar = userData.avatar !== undefined ? userData.avatar : prev.avatar;
+                            
+                            // Sanitization: Remove legacy UI Avatars links or "undefined" strings found in DB
+                            if (newAvatar && (newAvatar.includes("ui-avatars.com") || newAvatar === "undefined")) {
+                                newAvatar = "";
+                            }
+
                             return {
                                 ...prev,
+                                uid: firebaseUser.uid,
                                 name: userData.name || prev.name,
-                                avatar: userData.avatar || prev.avatar,
-                                role: userData.role || prev.role
+                                email: userData.email || prev.email,
+                                avatar: newAvatar,
+                                role: userData.role || prev.role,
+                                bio: userData.bio || '',
+                                jobTitle: userData.jobTitle || '',
+                                department: userData.department || '',
+                                phone: userData.phone || '',
+                                points: userData.points || 0,
+                                completedMissions: userData.completedMissions || []
                             };
                         });
                     } 
@@ -176,7 +207,13 @@ const App: React.FC = () => {
       case 'DASHBOARD_POINTS':
         return currentUser ? (
           <DashboardLayout currentView={currentView} onNavigate={navigateTo} user={currentUser}>
-            <QuizPage />
+            <QuizPage user={currentUser} onNavigate={navigateTo} />
+          </DashboardLayout>
+        ) : <LoginPage onNavigate={navigateTo} />;
+      case 'DASHBOARD_PROFILE':
+        return currentUser ? (
+          <DashboardLayout currentView={currentView} onNavigate={navigateTo} user={currentUser}>
+             <ProfilePage user={currentUser} />
           </DashboardLayout>
         ) : <LoginPage onNavigate={navigateTo} />;
       case 'DASHBOARD_CHAT':

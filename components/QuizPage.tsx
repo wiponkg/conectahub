@@ -1,147 +1,95 @@
+
 import React, { useState } from 'react';
-import { Check } from 'lucide-react';
+import { Trophy, Star, Zap, ArrowRight, CheckCircle, XCircle, BrainCircuit, Medal, ChevronRight, Loader2, User as UserIcon } from 'lucide-react';
+import { useTheme } from '../App';
+import { User, ViewState } from '../types';
+import { auth, db } from '../lib/firebase';
+import { doc, updateDoc, increment, arrayUnion } from 'firebase/firestore';
 
-type QuizStep = 'INTRO' | 'QUESTION' | 'RESULT';
+// --- Types & Mock Data ---
 
-export const QuizPage: React.FC = () => {
-  const [step, setStep] = useState<QuizStep>('INTRO');
-  const [isExiting, setIsExiting] = useState(false);
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+type GameState = 'HUB' | 'PLAYING' | 'VICTORY';
 
-  const handleNext = () => {
-    if (step === 'INTRO') {
-        setIsExiting(true);
-        // Wait for the transition (700ms) to complete before switching views
-        setTimeout(() => {
-            setStep('QUESTION');
-            setIsExiting(false);
-        }, 700);
-    }
-    else if (step === 'QUESTION' && selectedOption) setStep('RESULT');
-    else if (step === 'RESULT') {
-        setStep('INTRO');
-        setSelectedOption(null);
-    }
-  };
+interface Question {
+  id: number;
+  text: string;
+  options: string[];
+  correctAnswer: number; // Index
+  points: number;
+}
 
-  // Geometry configuration for the diagonal line
-  // Start Y (Left side): 40%
-  // End Y (Right side): 100% (or close to it)
-  // Equation: top = 40 + (left / 100) * 60
-  const dots = Array.from({ length: 9 }).map((_, i) => {
-    const left = 5 + i * 11; // Spread horizontally from 5% to ~93%
-    const top = 40 + (left / 100) * 60; // Calculate Y based on the slope
-    return { left: `${left}%`, top: `${top}%` };
-  });
+const DAILY_QUESTIONS: Question[] = [
+  {
+    id: 1,
+    text: "Qual é o pilar principal da nossa cultura de feedback?",
+    options: ["Crítica anônima", "Comunicação Não-Violenta", "Apenas elogios", "Relatórios mensais"],
+    correctAnswer: 1,
+    points: 10
+  },
+  {
+    id: 2,
+    text: "Onde você pode consultar o holerite mensal?",
+    options: ["No e-mail pessoal", "No mural físico", "Na aba Calendário", "No Portal do Colaborador"],
+    correctAnswer: 3,
+    points: 10
+  },
+  {
+    id: 3,
+    text: "Qual a meta de satisfação do cliente para este trimestre?",
+    options: ["NPS 50", "NPS 75", "NPS 90", "NPS 100"],
+    correctAnswer: 2,
+    points: 20
+  }
+];
 
-  return (
-    <div className="w-full min-h-screen relative bg-white overflow-hidden font-sans animate-fade-in">
-       
-       {/* INTRO SCREEN */}
-       {step === 'INTRO' && (
-           <>
-               {/* Dark Blue Shape */}
-               {/* Polygon: Top-Left, Top-Right, Bottom-Right, Left-Mid */}
-               {/* This creates a diagonal that goes DOWN from left to right */}
-               {/* We animate the clipPath to cover the full screen (0 0%) on exit */}
-               <div 
-                  className="absolute inset-0 bg-brand-dark z-0 shadow-2xl transition-all duration-700 ease-in-out"
-                  style={{ 
-                    clipPath: isExiting 
-                        ? 'polygon(0 0, 100% 0, 100% 100%, 0 0%)' 
-                        : 'polygon(0 0, 100% 0, 100% 100%, 0 40%)' 
-                  }}
-               />
-               
-               {/* Dots along the diagonal */}
-               {dots.map((pos, i) => (
-                  <div 
-                    key={i}
-                    className={`absolute w-14 h-14 bg-[#E5E7EB] rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.15)] z-10 transition-all duration-500 ease-in-out ${isExiting ? 'opacity-0 scale-0' : 'opacity-100 scale-100'}`}
-                    style={{ 
-                        left: pos.left, 
-                        top: pos.top,
-                        transform: 'translate(-50%, -50%)',
-                        transitionDelay: `${i * 50}ms`
-                    }}
-                  />
-               ))}
+interface Mission {
+  id: string;
+  title: string;
+  description: string;
+  points: number;
+  icon: React.ElementType;
+  color: string;
+}
 
-               {/* Content */}
-               <div className={`relative z-20 w-full h-full min-h-screen flex flex-col items-end justify-center pr-12 md:pr-24 pb-32 transition-all duration-500 ${isExiting ? 'opacity-0 translate-x-20' : 'opacity-100 translate-x-0'}`}>
-                  <div className="text-right flex flex-col items-end space-y-8">
-                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
-                        Interaja conosco e <br/>
-                        acumule pontos
-                    </h1>
-                    <button 
-                        onClick={handleNext}
-                        className="bg-[#3B82F6] hover:bg-blue-500 text-white text-xl font-semibold py-3 px-16 rounded-xl shadow-lg transition-transform transform hover:scale-105 active:scale-95"
-                    >
-                        Inicie
-                    </button>
-                  </div>
-               </div>
-           </>
-       )}
+const STATIC_MISSIONS: Mission[] = [
+  {
+    id: 'daily',
+    title: 'Quiz Diário',
+    description: 'Responda 3 perguntas sobre a cultura da empresa.',
+    points: 50,
+    icon: BrainCircuit,
+    color: 'bg-blue-500',
+  },
+  {
+    id: 'profile',
+    title: 'Completar Perfil',
+    description: 'Adicione uma foto e preencha sua bio.',
+    points: 100,
+    icon: Star,
+    color: 'bg-yellow-500',
+  },
+  {
+    id: 'feedback',
+    title: 'Feedback 360',
+    description: 'Envie um elogio para um colega de equipe.',
+    points: 30,
+    icon: Zap,
+    color: 'bg-purple-500',
+  }
+];
 
-       {/* QUESTION & RESULT SCREENS */}
-       {step !== 'INTRO' && (
-         <div className="absolute inset-0 bg-brand-dark flex items-center justify-center p-4 md:p-8">
-            <div className="bg-[#F3F4F6] w-full max-w-5xl rounded-[2.5rem] p-8 md:p-16 shadow-2xl relative min-h-[600px] flex flex-col justify-between animate-pop-in">
-                
-                {step === 'QUESTION' && (
-                    <div className="flex-1 flex flex-col justify-center animate-fade-in">
-                        <h2 className="text-3xl md:text-4xl font-bold text-gray-400 mb-12 leading-snug">
-                            Qual aba concentra o calendário com <br className="hidden md:block"/>
-                            reuniões, treinamentos e aniversários da <br className="hidden md:block"/>
-                            empresa?
-                        </h2>
-                        
-                        <div className="space-y-6 pl-2">
-                            {['A) Feed', 'B) Calendário', 'C) Chat', 'D) Ranking'].map((opt, idx) => {
-                                const isSelected = selectedOption === opt;
-                                return (
-                                    <div 
-                                        key={opt}
-                                        onClick={() => setSelectedOption(opt)}
-                                        className={`text-2xl md:text-3xl font-bold cursor-pointer transition-all duration-200 ${
-                                            isSelected ? 'text-gray-900 scale-[1.01] origin-left' : 'text-gray-400 hover:text-gray-500'
-                                        }`}
-                                        style={{ animationDelay: `${idx * 100}ms` }}
-                                    >
-                                        {opt}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
+interface QuizPageProps {
+  user: User;
+  onNavigate: (view: ViewState) => void;
+}
 
-                {step === 'RESULT' && (
-                    <div className="flex-1 flex flex-col items-center justify-center space-y-8 animate-pop-in">
-                         <div className="w-24 h-24 bg-brand-dark rounded-full flex items-center justify-center shadow-xl mb-4">
-                            <Check className="text-white w-12 h-12" strokeWidth={4} />
-                         </div>
-                         <h2 className="text-4xl md:text-5xl font-bold text-gray-500">Resposta certa</h2>
-                         <p className="text-5xl md:text-6xl font-bold text-gray-400 opacity-80">+ 5 pontos</p>
-                    </div>
-                )}
-
-                {/* Next Button */}
-                <div className="flex justify-end pt-8">
-                     <button 
-                        onClick={handleNext}
-                        className="bg-[#3B82F6] hover:bg-blue-600 text-white text-lg font-medium py-3 px-12 rounded-full shadow-md transition-all transform active:scale-95"
-                    >
-                        Próximo
-                    </button>
-                </div>
-
-            </div>
-         </div>
-       )}
-
-    </div>
-  );
-};
+export const QuizPage: React.FC<QuizPageProps> = ({ user, onNavigate }) => {
+  const { isDarkMode } = useTheme();
+  const [gameState, setGameState] = useState<GameState>('HUB');
+  
+  // Quiz State
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [score, setScore] = useState(0);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [isAnswerChecked, setIsAnswerChecked] = useState(false);
+  

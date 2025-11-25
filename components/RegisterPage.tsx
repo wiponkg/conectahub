@@ -2,10 +2,10 @@
 import React, { useState } from 'react';
 import { ViewState } from '../types';
 import { Logo } from './Logo';
-import { Sun, Moon, Loader2 } from 'lucide-react';
+import { Sun, Moon, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../App';
 import { auth, db } from '../lib/firebase';
-import { createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 interface AuthProps {
@@ -30,6 +30,8 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
   });
 
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [emailSentStatus, setEmailSentStatus] = useState<'sent' | 'failed' | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
 
@@ -101,21 +103,20 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
         const userDoc = await getDoc(userDocRef);
 
         if (!userDoc.exists()) {
-            // Cria o perfil se for novo usuário
+            // Cria o perfil se for novo usuário com dados iniciais de gamificação
              await setDoc(userDocRef, {
                 name: user.displayName || 'Usuário Google',
                 email: user.email,
                 role: 'Colaborador',
-                avatar: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'G'}&background=random`,
+                avatar: user.photoURL || "", 
+                points: 0,
+                completedMissions: [],
                 createdAt: new Date().toISOString()
             });
         }
         
         // Se estiver na tela de registro, mas logou com Google, fazemos o comportamento padrão do Google Sign-in:
         // O App.tsx detecta o user e redireciona para a Dashboard.
-        // Se quiser manter o comportamento de "Deslogar para ir pro Login", teríamos que dar signOut aqui.
-        // Mas para UX Social, geralmente se entra direto.
-        // Vou manter o fluxo direto para o Google.
 
     } catch (err: any) {
         console.error("Google Register Error:", err);
@@ -154,6 +155,8 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
 
     setIsLoading(true);
     setError('');
+    setSuccess('');
+    setEmailSentStatus(null);
 
     try {
         if (!auth) throw new Error("Firebase não configurado.");
@@ -162,14 +165,16 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
         const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
         const user = userCredential.user;
 
-        // 2. Save User Profile in Firestore (with timeout to prevent hanging)
+        // 2. Save User Profile in Firestore with Gamification Fields
         const saveProfilePromise = async () => {
-             const avatarUrl = `https://ui-avatars.com/api/?name=${formData.name.replace(' ', '+')}&background=random`;
+             // NÃO geramos avatar automático. Deixamos vazio para o frontend gerar as iniciais.
              await setDoc(doc(db, "users", user.uid), {
-                name: formData.name,
+                name: formData.name, // Nome exato digitado
                 email: formData.email,
                 role: 'Colaborador',
-                avatar: avatarUrl,
+                avatar: "", // Vazio para indicar "sem foto"
+                points: 0, // Inicializa pontos
+                completedMissions: [], // Inicializa missões
                 createdAt: new Date().toISOString()
             });
         };
@@ -184,16 +189,45 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
             console.warn("Profile save warning (proceeding anyway):", profileErr);
         }
 
-        // 3. Sign out immediately to prevent auto-login to Dashboard
+        // 3. Send Email Verification (Validação de existência do email)
+        try {
+            auth.languageCode = 'pt';
+            const actionCodeSettings = {
+                url: window.location.origin, 
+                handleCodeInApp: true,
+            };
+
+            if (auth.currentUser) {
+                await sendEmailVerification(auth.currentUser, actionCodeSettings);
+                setEmailSentStatus('sent');
+            } else {
+                await sendEmailVerification(user, actionCodeSettings);
+                setEmailSentStatus('sent');
+            }
+        } catch (emailErr) {
+            console.warn("Erro ao enviar email de verificação:", emailErr);
+            setEmailSentStatus('failed');
+        }
+
+        // 4. Sign out immediately to prevent auto-login to Dashboard
         await signOut(auth);
 
-        // 4. Redirect immediately to Login
-        onNavigate('LOGIN');
+        // 5. Show success message
+        if (emailSentStatus === 'failed') {
+             setSuccess('Cadastro realizado! (Não foi possível enviar o email de verificação agora, tente mais tarde).');
+        } else {
+             setSuccess('Cadastro realizado! Verifique sua caixa de entrada e verifique sua caixa de spam para validar o email.');
+        }
+        
+        setIsLoading(false);
+        
+        setTimeout(() => {
+            onNavigate('LOGIN');
+        }, 4000);
 
     } catch (err: any) {
         console.error("Registration error:", err);
         
-        // Safety cleanup if partial auth occurred
         if (auth?.currentUser) {
             try { await signOut(auth); } catch(e) {}
         }
@@ -209,7 +243,6 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
         } else {
             setError('Ocorreu um erro ao criar a conta. Tente novamente.');
         }
-        // Only stop loading if we have an error, otherwise we are navigating away
         setIsLoading(false);
     }
   };
@@ -245,14 +278,11 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
 
       <main className="flex-1 flex items-center justify-center px-4">
         <div className="w-full max-w-md space-y-6">
-            <h2 className="text-2xl font-bold text-center mb-8 hidden">Cadastro</h2>
-
-            {/* Social Login Section */}
             <div className="space-y-4">
                 <button 
                   type="button"
                   onClick={() => handleSocialRegister('apple')}
-                  disabled={isLoading}
+                  disabled={isLoading || !!success}
                   className={`w-full flex items-center justify-center gap-3 py-3 rounded-xl font-medium transition-colors ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-gray-200' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
                 >
                     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/1667px-Apple_logo_black.svg.png" alt="Apple" className={`w-5 h-5 ${isDarkMode ? 'invert' : ''}`} />
@@ -261,7 +291,7 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
                  <button 
                   type="button"
                   onClick={() => handleSocialRegister('google')}
-                  disabled={isLoading}
+                  disabled={isLoading || !!success}
                   className={`w-full flex items-center justify-center gap-3 py-3 rounded-xl font-medium transition-colors ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-gray-200' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
                 >
                    <span className="font-bold text-lg text-blue-500">G</span>
@@ -283,7 +313,7 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
                         type="text" 
                         value={formData.name} 
                         onChange={handleChange} 
-                        disabled={isLoading}
+                        disabled={isLoading || !!success}
                         className={getInputClass('name')} 
                         placeholder="Seu nome completo"
                     />
@@ -296,7 +326,7 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
                         type="email" 
                         value={formData.email} 
                         onChange={handleChange} 
-                        disabled={isLoading}
+                        disabled={isLoading || !!success}
                         className={getInputClass('email')} 
                         placeholder="seu@email.com"
                     />
@@ -309,7 +339,7 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
                         type="password" 
                         value={formData.password} 
                         onChange={handleChange} 
-                        disabled={isLoading}
+                        disabled={isLoading || !!success}
                         className={getInputClass('password')} 
                         placeholder="Mínimo 6 caracteres"
                     />
@@ -322,19 +352,31 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
                         type="password" 
                         value={formData.confirmPassword} 
                         onChange={handleChange} 
-                        disabled={isLoading}
+                        disabled={isLoading || !!success}
                         className={getInputClass('confirmPassword')} 
                     />
                     {fieldErrors.confirmPassword && <p className="text-red-500 text-xs mt-1 ml-1 animate-slide-up">{fieldErrors.confirmPassword}</p>}
                 </div>
 
                 {error && <p className="text-red-500 text-sm text-center animate-pulse bg-red-50 p-2 rounded border border-red-100 dark:bg-red-900/20 dark:border-red-800">{error}</p>}
+                
+                {success && (
+                    <div className={`text-sm text-center animate-pulse p-3 rounded border flex flex-col md:flex-row items-center justify-center gap-2 ${isDarkMode ? 'bg-green-900/20 border-green-800 text-green-400' : 'bg-green-50 border-green-100 text-green-700'}`}>
+                        <div className="flex items-center gap-2">
+                             <CheckCircle size={18} />
+                             {success}
+                        </div>
+                        {emailSentStatus === 'failed' && (
+                            <span className="text-xs opacity-75">(O email pode demorar um pouco)</span>
+                        )}
+                    </div>
+                )}
 
                 <div className="pt-6">
                     <button 
                         type="submit" 
-                        disabled={isLoading}
-                        className={`w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-full transition-all shadow-lg active:scale-95 transform flex items-center justify-center gap-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        disabled={isLoading || !!success}
+                        className={`w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-full transition-all shadow-lg active:scale-95 transform flex items-center justify-center gap-2 ${isLoading || !!success ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
                         {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Cadastrar'}
                     </button>

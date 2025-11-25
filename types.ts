@@ -7,16 +7,28 @@ export type ViewState =
   | 'DASHBOARD_CALENDAR' 
   | 'DASHBOARD_RANKING' 
   | 'DASHBOARD_CHAT' 
-  | 'DASHBOARD_POINTS';
+  | 'DASHBOARD_POINTS'
+  | 'DASHBOARD_PROFILE';
 
 export interface User {
+  uid?: string; // Adicionado UID para facilitar updates
   name: string;
+  email?: string;
   avatar: string;
   role?: string;
+  bio?: string;
+  jobTitle?: string;
+  department?: string;
+  phone?: string;
+  points?: number; // Pontuação gamificada
+  completedMissions?: string[]; // IDs das missões já resgatadas
 }
 
 export const DEFAULT_USER: User = {
   name: "Ana",
-  avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200", 
-  role: "Colaboradora"
+  email: "ana@empresa.com",
+  avatar: "", 
+  role: "Colaboradora",
+  points: 0,
+  completedMissions: []
 };

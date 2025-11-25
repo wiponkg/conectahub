@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
 import { Logo } from './Logo';
 import { Menu, X, Calculator, MessageCircle, Users, Gamepad2, MapPin, Mail, Phone, ArrowRight, Instagram, Linkedin, Facebook, Sun, Moon } from 'lucide-react';
@@ -14,7 +14,21 @@ type PageState = 'HOME' | 'ABOUT' | 'CONTACT';
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activePage, setActivePage] = useState<PageState>('HOME');
+  const [isScrolled, setIsScrolled] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme(); 
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 50) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleNavClick = (page: PageState) => {
     setActivePage(page);
@@ -74,11 +88,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       `}</style>
 
       {/* Header */}
-      <header className={`flex justify-between items-center px-8 py-6 max-w-7xl mx-auto w-full relative z-50 transition-colors duration-300 ${isDarkMode ? 'bg-slate-950' : 'bg-white'}`}>
+      <header 
+        className={`fixed top-0 left-0 right-0 flex justify-between items-center px-6 md:px-8 py-4 max-w-7xl mx-auto w-full z-50 transition-all duration-300 ${
+            isScrolled || isMenuOpen
+                ? (isDarkMode ? 'bg-slate-950/95 backdrop-blur-md shadow-lg' : 'bg-white/95 backdrop-blur-md shadow-sm') 
+                : 'bg-transparent py-6'
+        } ${isScrolled ? 'md:rounded-b-2xl' : ''}`}
+      >
         <Logo onClick={() => onNavigate('LANDING')} isDark={isDarkMode} />
         
         {/* Desktop Nav */}
-        <nav className={`hidden md:flex gap-10 text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+        <nav 
+            className={`hidden md:flex gap-10 text-sm font-medium transition-all duration-500 ease-in-out ${
+                isScrolled 
+                    ? 'opacity-100 translate-y-0' 
+                    : 'opacity-0 -translate-y-4 pointer-events-none'
+            } ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}
+        >
           <button 
             onClick={() => handleNavClick('HOME')} 
             className={`transition-colors ${activePage === 'HOME' ? (isDarkMode ? 'text-blue-400 font-bold' : 'text-blue-900 font-bold') : 'hover:text-blue-600'}`}
@@ -100,7 +126,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         </nav>
         
         {/* Desktop Buttons */}
-        <div className="hidden md:flex gap-6 items-center">
+        <div 
+            className={`hidden md:flex gap-6 items-center transition-all duration-500 ease-in-out ${
+                isScrolled 
+                    ? 'opacity-100 translate-y-0' 
+                    : 'opacity-0 -translate-y-4 pointer-events-none'
+            }`}
+        >
           <button 
              onClick={toggleTheme}
              className={`p-2 rounded-full transition-colors ${isDarkMode ? 'bg-slate-800 text-yellow-400 hover:bg-slate-700' : 'bg-gray-100 text-slate-600 hover:bg-gray-200'}`}
@@ -138,13 +170,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             </button>
         </div>
 
-        {/* Mobile Menu Dropdown */}
+        {/* Mobile Menu Dropdown - Full width below header */}
         {isMenuOpen && (
-          <div className={`absolute top-full left-0 right-0 shadow-2xl p-6 flex flex-col gap-6 md:hidden border-t z-50 transition-colors duration-300 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-gray-100'}`}>
+          <div className={`absolute top-full left-0 right-0 shadow-2xl p-6 flex flex-col gap-6 md:hidden border-b z-50 transition-colors duration-300 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-gray-100'}`}>
              <nav className={`flex flex-col gap-4 text-base font-medium ${isDarkMode ? 'text-slate-300' : 'text-gray-600'}`}>
-                <button onClick={() => handleNavClick('HOME')} className="text-left hover:text-blue-500">Início</button>
-                <button onClick={() => handleNavClick('ABOUT')} className="text-left hover:text-blue-500">Sobre nós</button>
-                <button onClick={() => handleNavClick('CONTACT')} className="text-left hover:text-blue-500">Contato</button>
+                <button onClick={() => handleNavClick('HOME')} className={`text-left py-2 px-4 rounded-lg hover:bg-opacity-10 ${activePage === 'HOME' ? 'bg-blue-500/10 text-blue-500 font-bold' : ''}`}>Início</button>
+                <button onClick={() => handleNavClick('ABOUT')} className={`text-left py-2 px-4 rounded-lg hover:bg-opacity-10 ${activePage === 'ABOUT' ? 'bg-blue-500/10 text-blue-500 font-bold' : ''}`}>Sobre nós</button>
+                <button onClick={() => handleNavClick('CONTACT')} className={`text-left py-2 px-4 rounded-lg hover:bg-opacity-10 ${activePage === 'CONTACT' ? 'bg-blue-500/10 text-blue-500 font-bold' : ''}`}>Contato</button>
              </nav>
              <div className={`flex flex-col gap-3 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-gray-100'}`}>
                 <button 
@@ -168,21 +200,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       {activePage === 'HOME' && (
         <div className="flex-1">
             {/* Hero Section */}
-            <section className={`relative transition-colors duration-300 ${isDarkMode ? 'bg-slate-900' : 'bg-[#fcfcfc]'}`}>
-                <div className="max-w-7xl mx-auto px-6 md:px-8 pt-10 pb-32">
+            <section className={`relative transition-colors duration-300 pt-28 md:pt-32 ${isDarkMode ? 'bg-slate-900' : 'bg-[#fcfcfc]'}`}>
+                <div className="max-w-7xl mx-auto px-6 md:px-8 pb-32">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                         
                         {/* Left: Text */}
-                        <div className="space-y-6 animate-hero-enter max-w-xl">
+                        <div className="space-y-6 animate-hero-enter max-w-xl text-center md:text-left">
                             <h1 className={`text-4xl md:text-[3.25rem] font-bold leading-[1.15] transition-colors ${isDarkMode ? 'text-blue-100' : 'text-[#0e0e52]'}`}>
                                 “Mais do que um canal interno, uma &nbsp;
                                 <span className={isDarkMode ? 'text-blue-400' : 'text-[#0e0e52]'}>comunidade</span><br />
                                 de conexões reais”
                             </h1>
-                            <p className={`text-sm md:text-[0.95rem] leading-relaxed max-w-md transition-colors ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+                            <p className={`text-sm md:text-[0.95rem] leading-relaxed max-w-md mx-auto md:mx-0 transition-colors ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
                                 Rápido, intuitivo e conectado é a nossa cultura, a ConectaHub é o jeito mais fácil de ficar informado e participar do que acontece dentro de sua empresa.
                             </p>
-                            <div className="pt-4">
+                            <div className="pt-4 flex justify-center md:justify-start">
                                 <button 
                                     onClick={() => onNavigate('REGISTER')}
                                     className="px-10 py-3 bg-[#3B82F6] text-white rounded-full text-sm font-bold shadow-md hover:bg-blue-600 transition-transform transform hover:-translate-y-0.5"
@@ -193,8 +225,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                         </div>
 
                         {/* Right: Circle Geometric Image */}
-                        <div className="relative animate-hero-enter delay-200 flex justify-center md:justify-end">
-                             <div className="relative w-full max-w-[500px] aspect-square">
+                        <div className="relative animate-hero-enter delay-200 flex justify-center md:justify-end mt-8 md:mt-0">
+                             <div className="relative w-[280px] md:w-full max-w-[500px] aspect-square">
                                 {/* The Geometric Shape (Purple Background) */}
                                 <div className="absolute inset-0 rounded-full bg-[#8c8cf5] shadow-2xl"></div>
                                 
@@ -215,7 +247,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                 {/* Curved Separator */}
                 <div className="absolute bottom-0 left-0 right-0 w-full translate-y-[98%] z-10">
                    {/* This matches the grey dip in the print */}
-                   <svg viewBox="0 0 1440 100" className="w-full h-auto min-h-[60px]" preserveAspectRatio="none">
+                   <svg viewBox="0 0 1440 100" className="w-full h-auto min-h-[40px] md:min-h-[60px]" preserveAspectRatio="none">
                         <path fill={isDarkMode ? '#0f172a' : '#b4b8c5'} d="M0,0 C480,100 960,100 1440,0 L1440,0 L0,0 Z" className="transition-colors duration-300" />
                    </svg>
                 </div>
@@ -226,7 +258,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                 <div className="max-w-7xl mx-auto px-6 md:px-8 space-y-16">
                     
                     {/* Top Banner Image */}
-                    <div className="w-full h-[250px] md:h-[350px] overflow-hidden relative shadow-2xl">
+                    <div className="w-full h-[200px] md:h-[350px] overflow-hidden relative shadow-2xl rounded-xl md:rounded-none">
                         <img 
                             src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=2000" 
                             alt="Meeting Room" 
@@ -245,7 +277,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                             <h2 className="text-white text-3xl md:text-[2.5rem] font-bold leading-tight">
                                 Conectar pessoas é fortalecer resultados
                             </h2>
-                            <div className="w-full h-64 overflow-hidden shadow-lg border-4 border-white/5">
+                            <div className="w-full h-64 overflow-hidden shadow-lg border-4 border-white/5 rounded-xl md:rounded-none">
                                 <img 
                                     src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&q=80&w=1000" 
                                     alt="Office environment" 
@@ -256,7 +288,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
                         {/* Right Column */}
                         <div className="space-y-8 md:pt-4">
-                            <div className="w-full h-64 overflow-hidden shadow-lg border-4 border-white/5">
+                            <div className="w-full h-64 overflow-hidden shadow-lg border-4 border-white/5 rounded-xl md:rounded-none">
                                 <img 
                                     src="https://images.unsplash.com/photo-1661956602116-aa6865609028?auto=format&fit=crop&q=80&w=1000" 
                                     alt="Working together" 
@@ -278,9 +310,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       {activePage === 'ABOUT' && (
         <div className="flex-1 animate-hero-enter">
             {/* Blue Header Section */}
-            <section className={`pt-12 pb-32 md:pb-48 relative overflow-visible text-white transition-colors duration-300 ${isDarkMode ? 'bg-slate-900' : 'bg-[#0e0e52]'}`}>
+            <section className={`pt-28 md:pt-32 pb-32 md:pb-48 relative overflow-visible text-white transition-colors duration-300 ${isDarkMode ? 'bg-slate-900' : 'bg-[#0e0e52]'}`}>
                 <div className="max-w-7xl mx-auto px-6 md:px-8">
-                    <div className="max-w-3xl animate-fade-in">
+                    <div className="max-w-3xl animate-fade-in text-center md:text-left">
                         <h1 className="text-4xl font-bold mb-6">Quem somos?</h1>
                         <p className="text-lg leading-relaxed text-blue-100 mb-12">
                             A Conectahub foi criada para aproximar pessoas, informações e iniciativas, ele funciona como
@@ -298,12 +330,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
             {/* Floating Cards Section (Interactive Flip) */}
             <div className="relative z-10 -mt-32 md:-mt-48 max-w-7xl mx-auto px-6 md:px-8 mb-24">
-                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-10">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-10">
                     {serviceCards.map((card, index) => (
                         <div 
                             key={index}
                             onClick={() => onNavigate(card.view)}
-                            className={`group perspective-1000 w-full aspect-[3/4] ${card.hasMargin ? 'mt-12 md:mt-24' : ''} cursor-pointer`}
+                            className={`group perspective-1000 w-full aspect-[3/4] ${card.hasMargin ? 'md:mt-24' : ''} cursor-pointer max-w-[300px] mx-auto`}
                         >
                             <div className="relative w-full h-full duration-700 transform-style-3d group-hover:rotate-y-180 shadow-2xl rounded-2xl transition-all">
                                 {/* Front Face */}
@@ -336,19 +368,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                     <div className="flex flex-col lg:flex-row gap-12 lg:items-center justify-between">
                         
                         {/* Text Stats */}
-                        <div className="flex flex-col gap-10 min-w-max">
+                        <div className="flex flex-col gap-6 md:gap-10 min-w-max text-center lg:text-left">
                             <div>
-                                <span className={`block text-4xl md:text-5xl font-bold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-[#0e0e52]'}`}>+10 milhões</span>
-                                <span className={`text-lg ml-1 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>de acessos</span>
+                                <span className={`block text-3xl md:text-5xl font-bold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-[#0e0e52]'}`}>+10 milhões</span>
+                                <span className={`text-base md:text-lg ml-1 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>de acessos</span>
                             </div>
                             <div>
-                                <span className={`block text-4xl md:text-5xl font-bold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-[#0e0e52]'}`}>+1,500</span>
-                                <span className={`text-lg ml-1 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>empresas</span>
+                                <span className={`block text-3xl md:text-5xl font-bold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-[#0e0e52]'}`}>+1,500</span>
+                                <span className={`text-base md:text-lg ml-1 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>empresas</span>
                             </div>
                         </div>
 
                         {/* Circular Stats Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-6 lg:gap-8 w-full">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 w-full">
                             {[
                                 { val: '93%', label: 'de satisfação' },
                                 { val: '85%', label: 'dos gestores afirmam que a tomada de decisão ficou mais eficiente' },
@@ -356,8 +388,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                                 { val: '98%', label: 'dos usuários aderiram nas primeiras semanas' }
                             ].map((stat, i) => (
                                 <div key={i} className="flex flex-col items-center text-center gap-3">
-                                    <div className={`w-24 h-24 md:w-28 md:h-28 rounded-full border-[6px] flex items-center justify-center bg-transparent transition-colors ${isDarkMode ? 'border-blue-500' : 'border-[#3B82F6]'}`}>
-                                        <span className={`text-xl md:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-[#0e0e52]'}`}>{stat.val}</span>
+                                    <div className={`w-20 h-20 md:w-28 md:h-28 rounded-full border-[6px] flex items-center justify-center bg-transparent transition-colors ${isDarkMode ? 'border-blue-500' : 'border-[#3B82F6]'}`}>
+                                        <span className={`text-lg md:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-[#0e0e52]'}`}>{stat.val}</span>
                                     </div>
                                     <p className={`text-xs md:text-sm font-medium leading-tight max-w-[120px] ${isDarkMode ? 'text-slate-400' : 'text-gray-600'}`}>
                                         {stat.label}
@@ -374,7 +406,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
       {/* ================= CONTACT PAGE ================= */}
       {activePage === 'CONTACT' && (
-        <div className="flex-1 animate-hero-enter flex flex-col items-center justify-center pt-12 pb-20">
+        <div className="flex-1 animate-hero-enter flex flex-col items-center justify-center pt-28 md:pt-32 pb-20">
             
             <div className="max-w-7xl w-full mx-auto px-6 md:px-8">
                 <div className="text-center mb-12">
@@ -449,7 +481,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                     </div>
 
                     {/* Right: Modern Form Side */}
-                    <div className={`flex-1 p-10 md:p-14 relative transition-colors ${isDarkMode ? 'bg-slate-900' : 'bg-white'}`}>
+                    <div className={`flex-1 p-8 md:p-14 relative transition-colors ${isDarkMode ? 'bg-slate-900' : 'bg-white'}`}>
                          <form className="h-full flex flex-col justify-center space-y-6" onSubmit={(e) => e.preventDefault()}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">

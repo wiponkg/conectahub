@@ -1,36 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
-import { User as UserIcon, AlertTriangle, PartyPopper, Send, AlertCircle, RefreshCw, Bell, Star } from 'lucide-react';
+import { AlertTriangle, PartyPopper, Send, AlertCircle, RefreshCw, Bell, Star, Trash2 } from 'lucide-react';
 import { User } from '../types';
 import { useTheme } from '../App';
+import { db } from '../lib/firebase';
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 
 interface Post {
-  id: number;
-  author: string;
-  initial: string;
-  time: string;
+  id: string;
+  authorName: string;
+  authorAvatar: string;
   content: string;
-  color: string;
+  createdAt: Timestamp | null; // Pode ser null logo após a criação local antes do sync
 }
-
-const INITIAL_POSTS: Post[] = [
-  {
-    id: 1,
-    author: 'Paulo',
-    initial: 'P',
-    time: 'Há 2 horas',
-    content: 'Estamos felizes em anunciar que atingimos nossa meta do trimestre!',
-    color: 'bg-blue-500'
-  },
-  {
-    id: 2,
-    author: 'Bianca',
-    initial: 'B',
-    time: 'Ontem',
-    content: 'Bem- vindo nossos novos colaboradores!',
-    color: 'bg-indigo-500'
-  }
-];
 
 interface DashboardHomeProps {
     user: User;
@@ -42,29 +24,55 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
   const [error, setError] = useState<string | null>(null);
   const [newPostText, setNewPostText] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { isDarkMode } = useTheme();
 
-  const loadData = () => {
-    setIsLoading(true);
-    setError(null);
+  // Função para formatar o tempo relativo (ex: "Há 2 horas")
+  const formatTimeAgo = (timestamp: Timestamp | null) => {
+      if (!timestamp) return 'Enviando...';
+      
+      const date = timestamp.toDate();
+      const now = new Date();
+      const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    // Simulate data fetching delay and potential error
-    setTimeout(() => {
-      // Simulating a 15% chance of failure to demonstrate error handling
-      const shouldFail = Math.random() < 0.15; 
+      if (diffInSeconds < 60) return 'Agora mesmo';
+      
+      const diffInMinutes = Math.floor(diffInSeconds / 60);
+      if (diffInMinutes < 60) return `Há ${diffInMinutes} min`;
 
-      if (shouldFail) {
-        setError('Não foi possível carregar o feed. Verifique sua conexão e tente novamente.');
-        setIsLoading(false);
-      } else {
-        setPosts(INITIAL_POSTS);
-        setIsLoading(false);
-      }
-    }, 1500);
+      const diffInHours = Math.floor(diffInMinutes / 60);
+      if (diffInHours < 24) return `Há ${diffInHours} ${diffInHours === 1 ? 'hora' : 'horas'}`;
+
+      const diffInDays = Math.floor(diffInHours / 24);
+      if (diffInDays === 1) return 'Ontem';
+      if (diffInDays < 7) return `Há ${diffInDays} dias`;
+
+      return date.toLocaleDateString('pt-BR');
   };
 
   useEffect(() => {
-    loadData();
+    setIsLoading(true);
+    
+    // Cria a query para buscar posts ordenados por data (mais recente primeiro)
+    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+
+    // Listener em tempo real
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedPosts: Post[] = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        } as Post));
+        
+        setPosts(fetchedPosts);
+        setIsLoading(false);
+        setError(null);
+    }, (err) => {
+        console.error("Erro ao buscar posts:", err);
+        setError("Não foi possível carregar o feed. Verifique sua conexão.");
+        setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const handlePostSubmit = () => {
@@ -72,21 +80,54 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
     setShowConfirm(true);
   };
 
-  const confirmPost = () => {
-    const newPost: Post = {
-        id: Date.now(),
-        author: user.name,
-        initial: user.name.charAt(0),
-        time: 'Agora mesmo',
-        content: newPostText,
-        color: 'bg-blue-600'
-    };
+  const confirmPost = async () => {
+    if (!newPostText.trim()) return;
+    
+    setIsSubmitting(true);
+    try {
+        await addDoc(collection(db, "posts"), {
+            content: newPostText,
+            authorName: user.name,
+            authorAvatar: user.avatar || "",
+            createdAt: serverTimestamp()
+        });
 
-    // Add new post to the top of the list
-    setPosts([newPost, ...posts]);
-    setNewPostText('');
-    setShowConfirm(false);
+        setNewPostText('');
+        setShowConfirm(false);
+    } catch (err) {
+        console.error("Erro ao publicar:", err);
+        alert("Erro ao publicar mensagem. Tente novamente.");
+    } finally {
+        setIsSubmitting(false);
+    }
   };
+
+  const getGreeting = (fullName: string) => {
+    if (!fullName) return 'Bem-vindo(a)';
+    const firstName = fullName.split(' ')[0].toLowerCase();
+    const isFemale = firstName.endsWith('a');
+    return isFemale ? 'Bem-vinda' : 'Bem-vindo';
+  };
+
+  const getInitials = (name: string) => {
+      if (!name) return 'U';
+      const parts = name.split(' ');
+      if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
+  const renderAvatar = (avatarUrl: string, name: string) => {
+      if (avatarUrl && avatarUrl.trim() !== "") {
+          return <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />;
+      }
+      return (
+          <div className="w-full h-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-bold">
+              {getInitials(name)}
+          </div>
+      );
+  };
+
+  const greeting = getGreeting(user.name);
 
   return (
     <div className={`p-8 md:p-12 max-w-7xl mx-auto animate-fade-in relative transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
@@ -109,15 +150,17 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
                 <div className="flex justify-end gap-4">
                     <button 
                         onClick={() => setShowConfirm(false)}
+                        disabled={isSubmitting}
                         className={`px-6 py-2 rounded-lg transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-slate-700' : 'text-gray-600 hover:bg-gray-100'}`}
                     >
                         Cancelar
                     </button>
                     <button 
                         onClick={confirmPost}
-                        className="px-6 py-2 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors"
+                        disabled={isSubmitting}
+                        className={`px-6 py-2 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors flex items-center gap-2 ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
-                        Publicar
+                        {isSubmitting ? 'Publicando...' : 'Publicar'}
                     </button>
                 </div>
             </div>
@@ -125,7 +168,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
       )}
 
       <div className="mb-10">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">Bem-vinda, {user.name}!</h1>
+        <h1 className="text-3xl md:text-4xl font-bold mb-2">{greeting}, {user.name}!</h1>
         <p className={`text-lg ${isDarkMode ? 'text-blue-200' : 'text-blue-600'}`}>Vamos nos manter conectados e informados</p>
       </div>
 
@@ -134,9 +177,9 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
         {/* Feed Section - Left Column */}
         <div id="main-feed" className="flex-1 w-full space-y-6">
             {/* Input Card */}
-            <div className={`rounded-2xl p-6 flex items-center gap-4 shadow-sm transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'} ${isLoading || error ? 'opacity-75 pointer-events-none' : ''}`}>
-                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white flex-shrink-0 shadow-md">
-                    <UserIcon size={24} />
+            <div className={`rounded-2xl p-6 flex items-center gap-4 shadow-sm transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'} ${isLoading ? 'opacity-75 pointer-events-none' : ''}`}>
+                <div className="w-12 h-12 rounded-full flex-shrink-0 shadow-md overflow-hidden relative border-2 border-transparent">
+                    {renderAvatar(user.avatar, user.name)}
                 </div>
                 <div className="flex-1 relative">
                     <input 
@@ -146,11 +189,11 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
                         placeholder="Compartilhe alguma novidade..." 
                         className={`w-full rounded-full py-3 px-6 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner transition-all focus:shadow-md ${isDarkMode ? 'bg-slate-900 text-white border border-slate-700' : 'bg-gray-50 text-gray-700 border border-transparent'}`}
                         onKeyDown={(e) => e.key === 'Enter' && handlePostSubmit()}
-                        disabled={isLoading || !!error}
+                        disabled={isLoading}
                     />
                     <button 
                         onClick={handlePostSubmit}
-                        disabled={isLoading || !!error}
+                        disabled={isLoading || !newPostText.trim()}
                         className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-blue-600 hover:text-blue-800 transition-colors hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Send size={18} />
@@ -169,10 +212,10 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
                      <h3 className={`font-bold text-xl mb-2 ${isDarkMode ? 'text-red-400' : 'text-red-800'}`}>Ops! Algo deu errado.</h3>
                      <p className={`mb-6 max-w-md ${isDarkMode ? 'text-red-300' : 'text-red-600'}`}>{error}</p>
                      <button 
-                        onClick={loadData} 
+                        onClick={() => window.location.reload()} 
                         className="flex items-center gap-2 px-8 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-bold transition-all shadow-lg hover:shadow-xl active:scale-95"
                      >
-                       <RefreshCw size={20} /> Tentar novamente
+                       <RefreshCw size={20} /> Recarregar
                      </button>
                   </div>
                 ) : isLoading ? (
@@ -194,6 +237,10 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
                       </div>
                     ))}
                   </>
+                ) : posts.length === 0 ? (
+                    <div className={`text-center py-10 rounded-2xl ${isDarkMode ? 'bg-slate-800/50' : 'bg-gray-50'}`}>
+                        <p className={`text-lg ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Nenhuma postagem ainda. Seja o primeiro!</p>
+                    </div>
                 ) : (
                   posts.map((post) => (
                       <div 
@@ -201,15 +248,17 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
                           className={`rounded-2xl p-6 shadow-sm transition-all duration-300 hover:shadow-md animate-slide-up ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'}`}
                       >
                           <div className="flex gap-4 mb-4">
-                              <div className={`w-12 h-12 ${post.color} rounded-full flex items-center justify-center text-white shadow-md`}>
-                                  <span className="font-bold text-lg">{post.initial}</span>
+                              <div className={`w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white shadow-md overflow-hidden`}>
+                                  {renderAvatar(post.authorAvatar, post.authorName)}
                               </div>
                               <div>
-                                  <h3 className={`font-bold text-lg ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{post.author}</h3>
-                                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{post.time}</p>
+                                  <h3 className={`font-bold text-lg ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{post.authorName}</h3>
+                                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      {formatTimeAgo(post.createdAt)}
+                                  </p>
                               </div>
                           </div>
-                          <p className={`text-lg leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{post.content}</p>
+                          <p className={`text-lg leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{post.content}</p>
                       </div>
                   ))
                 )}

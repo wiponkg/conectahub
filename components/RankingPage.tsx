@@ -20,16 +20,16 @@ export const RankingPage: React.FC = () => {
   const restOfList = users.slice(3);
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-[#0e0e52] to-slate-900 text-white font-sans overflow-hidden flex flex-col items-center animate-fade-in pb-4">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-[#0e0e52] to-slate-900 text-white font-sans overflow-hidden flex flex-col items-center animate-fade-in pb-20 md:pb-4">
         
         {/* Background Decor */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-            <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px]"></div>
-            <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-600/20 rounded-full blur-[120px]"></div>
+            <div className="absolute top-[-10%] left-[-10%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-blue-600/20 rounded-full blur-[80px] md:blur-[120px]"></div>
+            <div className="absolute bottom-[-10%] right-[-10%] w-[400px] md:w-[600px] h-[400px] md:h-[600px] bg-indigo-600/20 rounded-full blur-[80px] md:blur-[120px]"></div>
         </div>
 
         {/* Header */}
-        <div className="z-10 pt-8 pb-2 text-center space-y-1">
+        <div className="z-10 pt-8 pb-2 text-center space-y-1 px-4">
             <div className="flex items-center justify-center gap-2 mb-1">
                 <Trophy className="text-yellow-400 w-6 h-6 md:w-8 md:h-8 animate-bounce" />
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">Ranking Geral</h1>
@@ -37,64 +37,64 @@ export const RankingPage: React.FC = () => {
             <p className="text-blue-200 text-xs md:text-sm font-medium">Reconhecendo os talentos que mais engajam</p>
         </div>
 
-        {/* Podium Section (Top 3) - Compact Version */}
-        <div className="z-10 flex items-end justify-center gap-3 md:gap-6 mb-6 mt-12 px-4 w-full max-w-4xl h-auto md:min-h-[260px]">
+        {/* Podium Section (Top 3) - Responsive */}
+        <div className="z-10 flex items-end justify-center gap-2 md:gap-6 mb-6 mt-8 md:mt-12 px-2 w-full max-w-4xl h-auto min-h-[220px] md:min-h-[260px]">
             
             {/* 2nd Place */}
             <div className="flex flex-col items-center animate-slide-up" style={{ animationDelay: '200ms' }}>
                 <div className="relative mb-2">
-                    <div className="w-14 h-14 md:w-20 md:h-20 rounded-full border-4 border-slate-300 shadow-lg overflow-hidden relative z-10">
+                    <div className="w-12 h-12 md:w-20 md:h-20 rounded-full border-2 md:border-4 border-slate-300 shadow-lg overflow-hidden relative z-10">
                         <img src={topThree[1].img} alt={topThree[1].name} className="w-full h-full object-cover" />
                     </div>
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-slate-300 text-slate-900 font-bold text-[10px] px-2 py-0.5 rounded-full shadow-md z-20 flex items-center gap-1">
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-slate-300 text-slate-900 font-bold text-[8px] md:text-[10px] px-2 py-0.5 rounded-full shadow-md z-20 flex items-center gap-1">
                         2º
                     </div>
                 </div>
-                <div className="text-center mb-1">
-                    <h3 className="font-bold text-xs md:text-sm text-white drop-shadow-md">{topThree[1].name}</h3>
-                    <span className="text-[10px] md:text-xs text-blue-200 font-mono font-bold">{topThree[1].points} pts</span>
+                <div className="text-center mb-1 max-w-[80px] md:max-w-none">
+                    <h3 className="font-bold text-[10px] md:text-sm text-white drop-shadow-md truncate">{topThree[1].name}</h3>
+                    <span className="text-[9px] md:text-xs text-blue-200 font-mono font-bold">{topThree[1].points} pts</span>
                 </div>
-                <div className="w-16 md:w-24 h-20 md:h-28 bg-gradient-to-t from-slate-400/30 to-slate-300/10 rounded-t-lg backdrop-blur-sm border-t border-x border-white/20 flex items-end justify-center pb-2">
-                     <span className="text-3xl font-bold text-slate-200 opacity-40">2</span>
+                <div className="w-12 md:w-24 h-16 md:h-28 bg-gradient-to-t from-slate-400/30 to-slate-300/10 rounded-t-lg backdrop-blur-sm border-t border-x border-white/20 flex items-end justify-center pb-2">
+                     <span className="text-xl md:text-3xl font-bold text-slate-200 opacity-40">2</span>
                 </div>
             </div>
 
             {/* 1st Place */}
-            <div className="flex flex-col items-center animate-slide-up relative -top-4" style={{ animationDelay: '0ms' }}>
-                <div className="relative mb-4">
-                    <Crown className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-400 w-6 h-6 animate-pulse" fill="currentColor" />
-                    <div className="w-16 h-16 md:w-24 md:h-24 rounded-full border-4 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.4)] overflow-hidden relative z-10">
+            <div className="flex flex-col items-center animate-slide-up relative -top-3 md:-top-4" style={{ animationDelay: '0ms' }}>
+                <div className="relative mb-3 md:mb-4">
+                    <Crown className="absolute -top-5 md:-top-6 left-1/2 -translate-x-1/2 text-yellow-400 w-5 h-5 md:w-6 md:h-6 animate-pulse" fill="currentColor" />
+                    <div className="w-14 h-14 md:w-24 md:h-24 rounded-full border-2 md:border-4 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.4)] overflow-hidden relative z-10">
                         <img src={topThree[0].img} alt={topThree[0].name} className="w-full h-full object-cover" />
                     </div>
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 font-bold text-[10px] px-3 py-0.5 rounded-full shadow-md z-20 flex items-center gap-1">
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 font-bold text-[8px] md:text-[10px] px-2 md:px-3 py-0.5 rounded-full shadow-md z-20 flex items-center gap-1">
                         1º
                     </div>
                 </div>
-                <div className="text-center mb-1">
-                    <h3 className="font-bold text-sm md:text-base text-white drop-shadow-md">{topThree[0].name}</h3>
-                    <span className="text-xs text-yellow-300 font-bold font-mono">{topThree[0].points} pts</span>
+                <div className="text-center mb-1 max-w-[90px] md:max-w-none">
+                    <h3 className="font-bold text-xs md:text-base text-white drop-shadow-md truncate">{topThree[0].name}</h3>
+                    <span className="text-[10px] md:text-xs text-yellow-300 font-bold font-mono">{topThree[0].points} pts</span>
                 </div>
-                <div className="w-20 md:w-28 h-28 md:h-36 bg-gradient-to-t from-yellow-500/30 to-yellow-400/10 rounded-t-lg backdrop-blur-sm border-t border-x border-yellow-400/40 flex items-end justify-center pb-2 shadow-[0_0_15px_rgba(250,204,21,0.1)]">
-                    <span className="text-4xl font-bold text-yellow-200 opacity-40">1</span>
+                <div className="w-16 md:w-28 h-24 md:h-36 bg-gradient-to-t from-yellow-500/30 to-yellow-400/10 rounded-t-lg backdrop-blur-sm border-t border-x border-yellow-400/40 flex items-end justify-center pb-2 shadow-[0_0_15px_rgba(250,204,21,0.1)]">
+                    <span className="text-2xl md:text-4xl font-bold text-yellow-200 opacity-40">1</span>
                 </div>
             </div>
 
             {/* 3rd Place */}
             <div className="flex flex-col items-center animate-slide-up" style={{ animationDelay: '400ms' }}>
                  <div className="relative mb-2">
-                    <div className="w-14 h-14 md:w-20 md:h-20 rounded-full border-4 border-orange-400 shadow-lg overflow-hidden relative z-10">
+                    <div className="w-12 h-12 md:w-20 md:h-20 rounded-full border-2 md:border-4 border-orange-400 shadow-lg overflow-hidden relative z-10">
                         <img src={topThree[2].img} alt={topThree[2].name} className="w-full h-full object-cover" />
                     </div>
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-orange-400 text-orange-900 font-bold text-[10px] px-2 py-0.5 rounded-full shadow-md z-20 flex items-center gap-1">
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-orange-400 text-orange-900 font-bold text-[8px] md:text-[10px] px-2 py-0.5 rounded-full shadow-md z-20 flex items-center gap-1">
                         3º
                     </div>
                 </div>
-                <div className="text-center mb-1">
-                    <h3 className="font-bold text-xs md:text-sm text-white drop-shadow-md">{topThree[2].name}</h3>
-                    <span className="text-[10px] md:text-xs text-blue-200 font-mono font-bold">{topThree[2].points} pts</span>
+                <div className="text-center mb-1 max-w-[80px] md:max-w-none">
+                    <h3 className="font-bold text-[10px] md:text-sm text-white drop-shadow-md truncate">{topThree[2].name}</h3>
+                    <span className="text-[9px] md:text-xs text-blue-200 font-mono font-bold">{topThree[2].points} pts</span>
                 </div>
-                <div className="w-16 md:w-24 h-16 md:h-20 bg-gradient-to-t from-orange-500/30 to-orange-400/10 rounded-t-lg backdrop-blur-sm border-t border-x border-white/20 flex items-end justify-center pb-2">
-                    <span className="text-3xl font-bold text-orange-200 opacity-40">3</span>
+                <div className="w-12 md:w-24 h-12 md:h-20 bg-gradient-to-t from-orange-500/30 to-orange-400/10 rounded-t-lg backdrop-blur-sm border-t border-x border-white/20 flex items-end justify-center pb-2">
+                    <span className="text-xl md:text-3xl font-bold text-orange-200 opacity-40">3</span>
                 </div>
             </div>
 
@@ -105,10 +105,10 @@ export const RankingPage: React.FC = () => {
             <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
                 
                 {/* List Header */}
-                <div className="grid grid-cols-12 gap-4 p-3 border-b border-white/10 text-xs font-bold text-blue-200 uppercase tracking-wider bg-black/40">
-                    <div className="col-span-2 text-center">Posição</div>
-                    <div className="col-span-7 md:col-span-8 pl-4">Colaborador</div>
-                    <div className="col-span-3 md:col-span-2 text-center">Pontos</div>
+                <div className="grid grid-cols-12 gap-2 md:gap-4 p-3 border-b border-white/10 text-xs font-bold text-blue-200 uppercase tracking-wider bg-black/40">
+                    <div className="col-span-2 text-center">Pos</div>
+                    <div className="col-span-7 md:col-span-8 pl-2 md:pl-4">Colaborador</div>
+                    <div className="col-span-3 md:col-span-2 text-center">Pts</div>
                 </div>
 
                 {/* List Items */}
@@ -116,26 +116,26 @@ export const RankingPage: React.FC = () => {
                     {restOfList.map((user, index) => (
                         <div 
                             key={user.id} 
-                            className="grid grid-cols-12 gap-4 p-3 items-center hover:bg-white/10 transition-colors group cursor-default animate-fade-in"
+                            className="grid grid-cols-12 gap-2 md:gap-4 p-3 items-center hover:bg-white/10 transition-colors group cursor-default animate-fade-in"
                             style={{ animationDelay: `${500 + (index * 50)}ms` }}
                         >
                             <div className="col-span-2 flex justify-center">
-                                <span className="font-bold text-gray-300 group-hover:text-white transition-colors text-sm">{user.pos}º</span>
+                                <span className="font-bold text-gray-300 group-hover:text-white transition-colors text-xs md:text-sm">{user.pos}º</span>
                             </div>
                             
-                            <div className="col-span-7 md:col-span-8 flex items-center gap-3 pl-2">
-                                <div className="w-9 h-9 md:w-10 md:h-10 rounded-full overflow-hidden border border-white/20 group-hover:border-blue-400 transition-colors shrink-0">
+                            <div className="col-span-7 md:col-span-8 flex items-center gap-2 md:gap-3 pl-2">
+                                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border border-white/20 group-hover:border-blue-400 transition-colors shrink-0">
                                     <img src={user.img} alt={user.name} className="w-full h-full object-cover" />
                                 </div>
                                 <div className="min-w-0">
-                                    <h4 className="font-semibold text-sm text-gray-100 group-hover:text-white truncate">{user.name}</h4>
-                                    <p className="text-xs text-gray-400 group-hover:text-blue-300 truncate">{user.role}</p>
+                                    <h4 className="font-semibold text-xs md:text-sm text-gray-100 group-hover:text-white truncate">{user.name}</h4>
+                                    <p className="text-[10px] md:text-xs text-gray-400 group-hover:text-blue-300 truncate">{user.role}</p>
                                 </div>
                             </div>
                             
                             <div className="col-span-3 md:col-span-2 flex justify-center">
                                 <div className="flex items-center gap-1 bg-blue-900/50 px-2 py-1 rounded-full border border-blue-500/30 group-hover:border-blue-400/60 transition-colors shadow-sm">
-                                    <TrendingUp size={12} className="text-green-400" />
+                                    <TrendingUp size={10} className="text-green-400 md:w-3 md:h-3" />
                                     <span className="font-mono font-bold text-xs md:text-sm text-white">{user.points}</span>
                                 </div>
                             </div>
