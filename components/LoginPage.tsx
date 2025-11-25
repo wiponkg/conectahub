@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
 import { Logo } from './Logo';
-import { Sun, Moon, Loader2, Eye, EyeOff, MailWarning, Send, Copy } from 'lucide-react';
+import { Sun, Moon, Loader2, Eye, EyeOff, MailWarning, Send, Copy, Clock } from 'lucide-react';
 import { useTheme } from '../App';
 import { auth, db } from '../lib/firebase';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut, sendEmailVerification } from 'firebase/auth';
@@ -24,8 +24,17 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
   const [showResend, setShowResend] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSuccess, setResendSuccess] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const { isDarkMode, toggleTheme } = useTheme();
+
+  // Cooldown timer
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   const handleSocialLogin = async (providerName: 'apple' | 'google') => {
     if (providerName === 'apple') {
@@ -41,33 +50,25 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
 
-        // Verificar se o usuário já tem perfil no Firestore
         const userDocRef = doc(db, "users", user.uid);
         const userDoc = await getDoc(userDocRef);
 
         if (!userDoc.exists()) {
-            // Se for o primeiro acesso via Google, cria o perfil básico
             await setDoc(userDocRef, {
                 name: user.displayName || 'Usuário Google',
                 email: user.email,
                 role: 'Colaborador',
-                // Se Google tiver foto, usa. Se não, string vazia para ativar iniciais.
                 avatar: user.photoURL || "", 
                 createdAt: new Date().toISOString()
             });
         }
-
-        // O redirecionamento é tratado automaticamente pelo onAuthStateChanged no App.tsx
     } catch (err: any) {
         console.error("Google Login Error:", err);
         if (err.code === 'auth/popup-closed-by-user') {
             setError('O login foi cancelado.');
         } else if (err.code === 'auth/unauthorized-domain') {
-            // Mostrar o domínio atual para facilitar a configuração
             const currentDomain = window.location.hostname;
             setError(`Domínio não autorizado: ${currentDomain}`);
-        } else if (err.code === 'auth/operation-not-allowed') {
-            setError('Login com Google não habilitado no Firebase Console.');
         } else {
             setError('Erro ao conectar com Google. Tente novamente.');
         }
@@ -77,75 +78,75 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
   };
 
   const handleResendVerification = async () => {
-      if (!email || !password) {
-          setError("Digite seu email e senha para reenviar.");
-          return;
-      }
-      
+      if (resendCooldown > 0) return;
+
       setResendLoading(true);
       setError('');
       setResendSuccess('');
 
       try {
-          // Precisamos fazer login temporariamente para ter permissão de enviar o email
-          const userCredential = await signInWithEmailAndPassword(auth, email, password);
-          const user = userCredential.user;
+          // 1. Try to use existing user session first
+          let user = auth.currentUser;
           
-          if (user.emailVerified) {
-              setResendSuccess("Seu email já está verificado! Tente entrar novamente.");
-              setShowResend(false);
-              await signOut(auth);
-          } else {
-              const actionCodeSettings = {
-                  url: window.location.origin,
-                  handleCodeInApp: true,
-              };
-
-              try {
-                  await sendEmailVerification(user, actionCodeSettings);
-              } catch (innerErr: any) {
-                  // Fallback: Se o domínio não estiver na whitelist, tenta enviar sem a URL de redirecionamento
-                  if (innerErr.code === 'auth/unauthorized-continue-uri') {
-                      console.warn("Domínio não autorizado. Enviando email sem link de retorno.");
-                      await sendEmailVerification(user);
-                  } else {
-                      throw innerErr;
-                  }
+          // 2. If no session, try to re-login with credentials from form
+          if (!user) {
+              if (!email || !password) {
+                  setError("Digite email e senha novamente para reenviar.");
+                  setResendLoading(false);
+                  return;
               }
-
-              await signOut(auth); // Desloga imediatamente
-              setResendSuccess("Email reenviado! Verifique sua caixa de entrada e spam.");
-              setShowResend(false);
+              const cred = await signInWithEmailAndPassword(auth, email, password);
+              user = cred.user;
           }
+
+          if (user.emailVerified) {
+              setResendSuccess("Seu email já está verificado! Recarregando...");
+              setTimeout(() => window.location.reload(), 1500);
+              return;
+          }
+
+          const actionCodeSettings = {
+              url: window.location.origin,
+              handleCodeInApp: true,
+          };
+
+          try {
+              await sendEmailVerification(user, actionCodeSettings);
+          } catch (innerErr: any) {
+              // Fallback for unauthorized domains
+              if (innerErr.code === 'auth/unauthorized-continue-uri') {
+                  console.warn("Domínio não autorizado. Enviando email sem link de retorno.");
+                  await sendEmailVerification(user);
+              } else {
+                  throw innerErr;
+              }
+          }
+
+          setResendSuccess("Email reenviado! Verifique Caixa de Entrada e SPAM.");
+          setResendCooldown(60); // Start 60s cooldown
+          setShowResend(false);
+
       } catch (err: any) {
           console.error("Resend error:", err);
-          if (err.code === 'auth/unauthorized-continue-uri') {
-              // Fallback para o erro específico na chamada principal (caso ocorra antes do inner try)
-               try {
-                  const user = auth.currentUser;
-                  if (user) {
-                      await sendEmailVerification(user);
-                      await signOut(auth);
-                      setResendSuccess("Email reenviado (modo compatibilidade)! Verifique spam.");
-                      setShowResend(false);
-                      return; 
-                  }
-               } catch (e) {}
-          }
-
+          
+          // GRACEFUL HANDLING OF TOO MANY REQUESTS
           if (err.code === 'auth/too-many-requests') {
-              setError("Muitas tentativas. Aguarde um pouco.");
+              setResendSuccess("Email já enviado recentemente. Verifique seu SPAM.");
+              setResendCooldown(60); // Assume success to prevent spamming
+              setShowResend(false);
+          } else if (err.code === 'auth/unauthorized-continue-uri') {
+               // Should be caught above, but double safety
+               setResendSuccess("Email enviado (modo compatibilidade). Verifique SPAM.");
+               setResendCooldown(60);
           } else if (err.code === 'auth/invalid-credential') {
-              setError("Email ou senha incorretos.");
+              setError("Sessão expirada. Digite a senha novamente.");
           } else {
-              setError("Erro ao reenviar. Verifique seus dados.");
+              setError("Erro ao reenviar. Tente novamente em alguns minutos.");
           }
       } finally {
-          // Garante limpeza de sessão se algo falhar mas o login tiver ocorrido
-          if (auth.currentUser) {
-              try { await signOut(auth); } catch (e) {}
-          }
           setResendLoading(false);
+          // Note: We do NOT signOut here intentionally to allow user to try again
+          // if they failed, or to keep session ready for 'check verified' reload.
       }
   };
 
@@ -173,30 +174,34 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // Check Email Verification
+        // Force refresh to get latest status
+        await user.reload();
+
         if (!user.emailVerified) {
-            await signOut(auth); // Impede que o App.tsx redirecione para dashboard
+            // IMPORTANT: Do NOT signOut(auth) here. 
+            // Keeping the user "technically" logged in allows handleResendVerification 
+            // to work without asking for password again, and avoids rate limit loops.
+            // App.tsx handles blocking access to Dashboard.
+            
             setError('Email não verificado. Verifique sua caixa de entrada e spam.');
             setShowResend(true);
             setIsLoading(false);
             return;
         }
 
-        // Navigation is handled by App.tsx's onAuthStateChanged listener
+        // If verified, App.tsx will redirect automatically
     } catch (err: any) {
         console.error(err);
         if (err.code === 'auth/invalid-credential') {
             setError('Email ou senha incorretos.');
         } else if (err.code === 'auth/user-not-found') {
-            // Se o usuário não existe, redireciona para o cadastro
             setError('Email não cadastrado. Redirecionando para o cadastro...');
             setTimeout(() => {
                 onNavigate('REGISTER');
             }, 1500);
-            setIsLoading(false);
             return;
         } else if (err.code === 'auth/too-many-requests') {
-            setError('Muitas tentativas. Tente novamente mais tarde.');
+            setError('Muitas tentativas. Aguarde alguns instantes.');
         } else if (err.message === "Firebase não configurado.") {
              setError("Erro de configuração: Adicione suas chaves do Firebase em lib/firebase.ts");
         } else {
@@ -293,6 +298,7 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
                     </div>
                 </div>
 
+                {/* Error Box */}
                 {error && (
                     <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-100 dark:border-red-800 animate-pulse flex flex-col items-center">
                         <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm font-medium justify-center text-center">
@@ -308,24 +314,39 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
                                 <Copy size={12} /> Copiar Domínio
                             </button>
                         )}
-                        {showResend && (
-                             <button 
-                                type="button"
-                                onClick={handleResendVerification}
-                                disabled={resendLoading}
-                                className="mt-2 w-full flex items-center justify-center gap-2 text-xs text-blue-600 dark:text-blue-400 hover:underline font-bold"
-                             >
-                                 {resendLoading ? <Loader2 className="animate-spin" size={12} /> : <Send size={12} />}
-                                 {resendLoading ? 'Enviando...' : 'Reenviar email de verificação'}
-                             </button>
+                        
+                        {/* Resend Logic */}
+                        {(showResend || error.includes("não verificado")) && (
+                             <div className="mt-3 w-full">
+                                {resendCooldown > 0 ? (
+                                    <div className="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400 font-medium bg-white/50 dark:bg-black/20 p-2 rounded">
+                                        <Clock size={12} />
+                                        Aguarde {resendCooldown}s para reenviar
+                                    </div>
+                                ) : (
+                                    <button 
+                                        type="button"
+                                        onClick={handleResendVerification}
+                                        disabled={resendLoading}
+                                        className="w-full flex items-center justify-center gap-2 text-xs text-blue-600 dark:text-blue-400 hover:underline font-bold"
+                                    >
+                                        {resendLoading ? <Loader2 className="animate-spin" size={12} /> : <Send size={12} />}
+                                        {resendLoading ? 'Enviando...' : 'Reenviar email de verificação'}
+                                    </button>
+                                )}
+                             </div>
                         )}
                     </div>
                 )}
                 
+                {/* Success Message for Resend */}
                 {resendSuccess && (
-                    <p className="text-green-600 text-sm text-center bg-green-50 p-2 rounded border border-green-100 dark:bg-green-900/20 dark:border-green-800">
-                        {resendSuccess}
-                    </p>
+                    <div className="text-green-600 text-sm text-center bg-green-50 p-2 rounded border border-green-100 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400">
+                        <p className="font-bold mb-1">{resendSuccess}</p>
+                        {resendCooldown > 0 && (
+                            <p className="text-xs opacity-75">Próximo envio em: {resendCooldown}s</p>
+                        )}
+                    </div>
                 )}
 
                 <div className="flex justify-center pt-4">

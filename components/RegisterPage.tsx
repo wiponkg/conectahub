@@ -44,9 +44,10 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
               else if (value.trim().length < 3) errorMsg = 'O nome deve ter pelo menos 3 caracteres.';
               break;
           case 'email':
-              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+              // Validação rigorosa de formato de email
+              const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
               if (!value.trim()) errorMsg = 'O email é obrigatório.';
-              else if (!emailRegex.test(value)) errorMsg = 'Insira um email válido.';
+              else if (!emailRegex.test(value)) errorMsg = 'Formato inválido. Use: nome@exemplo.com';
               break;
           case 'password':
               if (!value) errorMsg = 'A senha é obrigatória.';
