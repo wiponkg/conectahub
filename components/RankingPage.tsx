@@ -1,6 +1,6 @@
 
-import React, { useEffect, useState } from 'react';
-import { Trophy, Crown, TrendingUp, Loader2, User as UserIcon } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Trophy, Crown, TrendingUp, Loader2, User as UserIcon, Filter, MapPin, Briefcase, X } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 
@@ -9,6 +9,8 @@ interface RankingUser {
   name: string;
   avatar?: string;
   role?: string;
+  jobTitle?: string;
+  department?: string;
   points: number;
   pos: number;
 }
@@ -16,10 +18,15 @@ interface RankingUser {
 export const RankingPage: React.FC = () => {
   const [users, setUsers] = useState<RankingUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Filter States
+  const [selectedDept, setSelectedDept] = useState<string>('');
+  const [selectedRole, setSelectedRole] = useState<string>('');
 
   useEffect(() => {
-    // Busca os top 50 usuários ordenados por pontos
-    const q = query(collection(db, "users"), orderBy("points", "desc"), limit(50));
+    // Busca os top 100 usuários para ter uma boa amostragem para filtros
+    // Nota: Em uma aplicação real com milhares de usuários, a filtragem idealmente seria feita no backend (Firestore queries compostas)
+    const q = query(collection(db, "users"), orderBy("points", "desc"), limit(100));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedUsers: RankingUser[] = snapshot.docs.map((doc, index) => {
@@ -28,9 +35,11 @@ export const RankingPage: React.FC = () => {
           id: doc.id,
           name: data.name || 'Usuário Sem Nome',
           avatar: data.avatar || '',
-          role: data.role || 'Colaborador',
+          role: data.role || 'Colaborador', // Permissão do sistema
+          jobTitle: data.jobTitle || '', // Cargo profissional (ex: Dev)
+          department: data.department || '', // Departamento (ex: TI)
           points: data.points || 0,
-          pos: index + 1
+          pos: index + 1 // Posição original global
         };
       });
       setUsers(fetchedUsers);
@@ -43,8 +52,38 @@ export const RankingPage: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  const topThree = users.slice(0, 3);
-  const restOfList = users.slice(3);
+  // Extract Unique Departments and Roles for Filter Dropdowns
+  const departments = useMemo(() => {
+    const depts = users.map(u => u.department).filter(d => d && d.trim() !== '');
+    return Array.from(new Set(depts)).sort();
+  }, [users]);
+
+  const roles = useMemo(() => {
+    const jobs = users.map(u => u.jobTitle).filter(j => j && j.trim() !== '');
+    return Array.from(new Set(jobs)).sort();
+  }, [users]);
+
+  // Apply Filters and Recalculate Positions
+  const filteredUsers = useMemo(() => {
+    let result = users;
+
+    if (selectedDept) {
+      result = result.filter(u => u.department === selectedDept);
+    }
+    
+    if (selectedRole) {
+      result = result.filter(u => u.jobTitle === selectedRole);
+    }
+
+    // Re-assign positions based on filtered list (1st, 2nd, 3rd relative to filter)
+    return result.map((user, index) => ({
+      ...user,
+      pos: index + 1
+    }));
+  }, [users, selectedDept, selectedRole]);
+
+  const topThree = filteredUsers.slice(0, 3);
+  const restOfList = filteredUsers.slice(3);
 
   // Helper para renderizar avatar ou iniciais
   const renderAvatar = (avatarUrl: string | undefined, name: string) => {
@@ -84,19 +123,78 @@ export const RankingPage: React.FC = () => {
         </div>
 
         {/* Header */}
-        <div className="z-10 pt-8 pb-2 text-center space-y-1 px-4">
+        <div className="z-10 pt-8 pb-4 text-center space-y-1 px-4 w-full max-w-4xl">
             <div className="flex items-center justify-center gap-2 mb-1">
                 <Trophy className="text-yellow-400 w-6 h-6 md:w-8 md:h-8 animate-bounce" />
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">Ranking Geral</h1>
             </div>
-            <p className="text-blue-200 text-xs md:text-sm font-medium">Reconhecendo os talentos que mais engajam</p>
+            <p className="text-blue-200 text-xs md:text-sm font-medium mb-6">Reconhecendo os talentos que mais engajam</p>
+            
+            {/* Filter Bar */}
+            <div className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-4 md:p-5 flex flex-col md:flex-row gap-4 items-center justify-center animate-slide-up">
+                <div className="flex items-center gap-2 text-sm font-bold text-blue-300 uppercase tracking-wider md:mr-2">
+                    <Filter size={16} /> Filtros:
+                </div>
+                
+                <div className="flex w-full md:w-auto gap-3 flex-col md:flex-row">
+                    {/* Department Filter */}
+                    <div className="relative group min-w-[200px]">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-300 group-hover:text-white transition-colors">
+                            <MapPin size={16} />
+                        </div>
+                        <select 
+                            value={selectedDept}
+                            onChange={(e) => setSelectedDept(e.target.value)}
+                            className="w-full bg-black/20 hover:bg-black/40 text-white pl-10 pr-8 py-2.5 rounded-xl border border-white/10 focus:border-blue-400 focus:outline-none appearance-none cursor-pointer transition-all text-sm font-medium"
+                        >
+                            <option value="" className="bg-slate-800 text-gray-400">Todos os Departamentos</option>
+                            {departments.map(dept => (
+                                <option key={dept} value={dept} className="bg-slate-800 text-white">{dept}</option>
+                            ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none border-l border-white/10 pl-2">
+                             <div className="border-t-4 border-l-4 border-r-4 border-transparent border-t-white opacity-50"></div>
+                        </div>
+                    </div>
+
+                    {/* Job Title Filter */}
+                    <div className="relative group min-w-[200px]">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-300 group-hover:text-white transition-colors">
+                            <Briefcase size={16} />
+                        </div>
+                        <select 
+                            value={selectedRole}
+                            onChange={(e) => setSelectedRole(e.target.value)}
+                            className="w-full bg-black/20 hover:bg-black/40 text-white pl-10 pr-8 py-2.5 rounded-xl border border-white/10 focus:border-blue-400 focus:outline-none appearance-none cursor-pointer transition-all text-sm font-medium"
+                        >
+                            <option value="" className="bg-slate-800 text-gray-400">Todos os Cargos</option>
+                            {roles.map(role => (
+                                <option key={role} value={role} className="bg-slate-800 text-white">{role}</option>
+                            ))}
+                        </select>
+                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none border-l border-white/10 pl-2">
+                             <div className="border-t-4 border-l-4 border-r-4 border-transparent border-t-white opacity-50"></div>
+                        </div>
+                    </div>
+
+                    {/* Clear Filters */}
+                    {(selectedDept || selectedRole) && (
+                        <button 
+                            onClick={() => { setSelectedDept(''); setSelectedRole(''); }}
+                            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 rounded-xl border border-red-500/20 transition-all text-sm font-medium"
+                        >
+                            <X size={16} /> Limpar
+                        </button>
+                    )}
+                </div>
+            </div>
         </div>
 
         {/* Podium Section (Top 3) - Responsive */}
-        <div className="z-10 flex items-end justify-center gap-2 md:gap-6 mb-6 mt-8 md:mt-12 px-2 w-full max-w-4xl h-auto min-h-[220px] md:min-h-[260px]">
+        <div className="z-10 flex items-end justify-center gap-2 md:gap-6 mb-6 mt-4 md:mt-8 px-2 w-full max-w-4xl h-auto min-h-[220px] md:min-h-[260px]">
             
             {/* 2nd Place */}
-            <div className="flex flex-col items-center animate-slide-up w-1/3 max-w-[120px] md:max-w-none" style={{ animationDelay: '200ms' }}>
+            <div className="flex flex-col items-center animate-slide-up w-1/3 max-w-[120px] md:max-w-none transition-all duration-500" style={{ animationDelay: '200ms' }}>
                 {topThree[1] ? (
                     <>
                         <div className="relative mb-2">
@@ -110,6 +208,7 @@ export const RankingPage: React.FC = () => {
                         <div className="text-center mb-1 w-full overflow-hidden px-1">
                             <h3 className="font-bold text-[10px] md:text-sm text-white drop-shadow-md truncate">{topThree[1].name}</h3>
                             <span className="text-[9px] md:text-xs text-blue-200 font-mono font-bold">{topThree[1].points} pts</span>
+                            <div className="hidden md:block text-[9px] text-gray-400 truncate max-w-[100px] mx-auto">{topThree[1].department || ''}</div>
                         </div>
                     </>
                 ) : (
@@ -121,7 +220,7 @@ export const RankingPage: React.FC = () => {
             </div>
 
             {/* 1st Place */}
-            <div className="flex flex-col items-center animate-slide-up relative -top-3 md:-top-4 w-1/3 max-w-[140px] md:max-w-none" style={{ animationDelay: '0ms' }}>
+            <div className="flex flex-col items-center animate-slide-up relative -top-3 md:-top-4 w-1/3 max-w-[140px] md:max-w-none transition-all duration-500" style={{ animationDelay: '0ms' }}>
                 {topThree[0] ? (
                     <>
                         <div className="relative mb-3 md:mb-4">
@@ -136,10 +235,13 @@ export const RankingPage: React.FC = () => {
                         <div className="text-center mb-1 w-full overflow-hidden px-1">
                             <h3 className="font-bold text-xs md:text-base text-white drop-shadow-md truncate">{topThree[0].name}</h3>
                             <span className="text-[10px] md:text-xs text-yellow-300 font-bold font-mono">{topThree[0].points} pts</span>
+                            <div className="hidden md:block text-[9px] text-gray-400 truncate max-w-[100px] mx-auto">{topThree[0].department || ''}</div>
                         </div>
                     </>
                 ) : (
-                    <div className="h-24 md:h-40 flex items-center justify-center text-xs text-white/50">Sem dados</div>
+                    <div className="h-24 md:h-40 flex items-center justify-center text-xs text-white/50 text-center px-2">
+                         {filteredUsers.length === 0 ? "Nenhum resultado" : "Sem dados"}
+                    </div>
                 )}
                 <div className="w-full md:w-28 h-24 md:h-36 bg-gradient-to-t from-yellow-500/30 to-yellow-400/10 rounded-t-lg backdrop-blur-sm border-t border-x border-yellow-400/40 flex items-end justify-center pb-2 shadow-[0_0_15px_rgba(250,204,21,0.1)]">
                     <span className="text-2xl md:text-4xl font-bold text-yellow-200 opacity-40">1</span>
@@ -147,7 +249,7 @@ export const RankingPage: React.FC = () => {
             </div>
 
             {/* 3rd Place */}
-            <div className="flex flex-col items-center animate-slide-up w-1/3 max-w-[120px] md:max-w-none" style={{ animationDelay: '400ms' }}>
+            <div className="flex flex-col items-center animate-slide-up w-1/3 max-w-[120px] md:max-w-none transition-all duration-500" style={{ animationDelay: '400ms' }}>
                  {topThree[2] ? (
                     <>
                         <div className="relative mb-2">
@@ -161,6 +263,7 @@ export const RankingPage: React.FC = () => {
                         <div className="text-center mb-1 w-full overflow-hidden px-1">
                             <h3 className="font-bold text-[10px] md:text-sm text-white drop-shadow-md truncate">{topThree[2].name}</h3>
                             <span className="text-[9px] md:text-xs text-blue-200 font-mono font-bold">{topThree[2].points} pts</span>
+                            <div className="hidden md:block text-[9px] text-gray-400 truncate max-w-[100px] mx-auto">{topThree[2].department || ''}</div>
                         </div>
                     </>
                  ) : (
@@ -191,7 +294,7 @@ export const RankingPage: React.FC = () => {
                             <div 
                                 key={user.id} 
                                 className="grid grid-cols-12 gap-2 md:gap-4 p-3 items-center hover:bg-white/10 transition-colors group cursor-default animate-fade-in"
-                                style={{ animationDelay: `${500 + (index * 50)}ms` }}
+                                style={{ animationDelay: `${100 + (index * 50)}ms` }}
                             >
                                 <div className="col-span-2 flex justify-center">
                                     <span className="font-bold text-gray-300 group-hover:text-white transition-colors text-xs md:text-sm">{user.pos}º</span>
@@ -199,7 +302,7 @@ export const RankingPage: React.FC = () => {
                                 
                                 <div className="col-span-7 md:col-span-8 flex items-center gap-2 md:gap-3 pl-2">
                                     <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border border-white/20 group-hover:border-blue-400 transition-colors shrink-0 bg-slate-800">
-                                        {/* Simplified render for list items to avoid code dup, using small helper logic inline or reusing function */}
+                                        {/* Simplified render for list items */}
                                         {user.avatar && user.avatar !== "" ? (
                                              <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
                                         ) : (
@@ -210,7 +313,15 @@ export const RankingPage: React.FC = () => {
                                     </div>
                                     <div className="min-w-0">
                                         <h4 className="font-semibold text-xs md:text-sm text-gray-100 group-hover:text-white truncate">{user.name}</h4>
-                                        <p className="text-[10px] md:text-xs text-gray-400 group-hover:text-blue-300 truncate">{user.role}</p>
+                                        <div className="flex items-center gap-2 text-[10px] md:text-xs text-gray-400 group-hover:text-blue-300">
+                                            <span className="truncate max-w-[80px] md:max-w-none">{user.jobTitle || user.role}</span>
+                                            {user.department && (
+                                                <>
+                                                    <span className="w-1 h-1 rounded-full bg-gray-500"></span>
+                                                    <span className="truncate max-w-[60px] md:max-w-none">{user.department}</span>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -226,9 +337,12 @@ export const RankingPage: React.FC = () => {
                 </div>
             ) : (
                 <div className="text-center py-8 text-blue-200/50 italic text-sm">
-                    {users.length <= 3 && users.length > 0 
-                        ? "Ainda não há outros competidores. Convide mais colegas!" 
-                        : "Nenhum ranking disponível ainda."}
+                   {filteredUsers.length === 0 && (selectedDept || selectedRole)
+                     ? "Nenhum colaborador encontrado com estes filtros."
+                     : users.length <= 3 && users.length > 0 
+                        ? "Convide mais colegas para competir!" 
+                        : "Nenhum ranking disponível."
+                   }
                 </div>
             )}
         </div>

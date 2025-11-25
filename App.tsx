@@ -13,6 +13,8 @@ import { ViewState, User, DEFAULT_USER } from './types';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, signOut, applyActionCode } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { Logo } from './components/Logo';
+import { CheckCircle2, XCircle, Loader2, ArrowRight } from 'lucide-react';
 
 // Theme Context Definition
 interface ThemeContextType {
@@ -208,29 +210,61 @@ const App: React.FC = () => {
   };
 
   const renderView = () => {
+    // ----------------------------------------------------------------------
+    // GLOBAL LOADING & VERIFICATION STATES (Visual Overhaul)
+    // ----------------------------------------------------------------------
+
     if (isLoading || verificationStatus === 'verifying') {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-brand-dark gap-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
-                {verificationStatus === 'verifying' ? (
-                     <p className="text-white animate-pulse">Validando seu email...</p>
-                ) : (
-                     <p className="text-white animate-pulse">Carregando...</p>
-                )}
+            <div className={`min-h-screen flex flex-col items-center justify-center gap-6 transition-colors duration-500 ${isDarkMode ? 'bg-slate-950' : 'bg-gray-50'}`}>
+                <div className="scale-125 mb-4">
+                    <Logo isDark={isDarkMode} />
+                </div>
+                <div className="flex flex-col items-center gap-4">
+                    <div className="relative">
+                        <div className="w-16 h-16 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin"></div>
+                    </div>
+                    <div className="text-center space-y-2 animate-pulse">
+                         <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                             {verificationStatus === 'verifying' ? 'Validando E-mail' : 'Carregando ConectaHub'}
+                         </h2>
+                         <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                             Isso vai levar apenas um momento...
+                         </p>
+                    </div>
+                </div>
             </div>
         );
     }
 
-    // Success/Error Overlay for Verification
     if (verificationStatus === 'success') {
          return (
-             <div className="min-h-screen flex flex-col items-center justify-center bg-green-50 px-4 text-center">
-                 <div className="bg-white p-8 rounded-2xl shadow-xl max-w-sm w-full animate-pop-in">
-                     <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600 text-3xl">✓</div>
-                     <h2 className="text-2xl font-bold text-gray-800 mb-2">Email Verificado!</h2>
-                     <p className="text-gray-600 mb-6">Sua conta foi ativada. Entrando no sistema...</p>
-                     <div className="w-full bg-gray-200 h-1 rounded-full overflow-hidden">
-                        <div className="h-full bg-green-500 animate-[width_3s_ease-in-out_forwards]" style={{width: '0%'}}></div>
+             <div className={`min-h-screen flex flex-col items-center justify-center px-4 transition-colors ${isDarkMode ? 'bg-slate-950' : 'bg-gray-50'}`}>
+                 <div className="mb-8 scale-110">
+                    <Logo isDark={isDarkMode} />
+                 </div>
+                 <div className={`w-full max-w-md p-8 rounded-3xl shadow-2xl text-center animate-pop-in relative overflow-hidden ${isDarkMode ? 'bg-slate-900 border border-slate-800' : 'bg-white border border-gray-100'}`}>
+                     {/* Confetti / Decoration Background */}
+                     <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-emerald-600"></div>
+                     
+                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-[popIn_0.6s_cubic-bezier(0.175,0.885,0.32,1.275)_forwards]">
+                         <CheckCircle2 className="w-10 h-10 text-green-600" strokeWidth={3} />
+                     </div>
+                     
+                     <h2 className={`text-2xl md:text-3xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                         E-mail Verificado!
+                     </h2>
+                     <p className={`text-sm md:text-base mb-8 leading-relaxed ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                         Sua conta foi ativada com sucesso. Você já faz parte da nossa comunidade.
+                     </p>
+                     
+                     <div className="space-y-3">
+                         <p className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                             Redirecionando para o sistema
+                         </p>
+                         <div className={`w-full h-2 rounded-full overflow-hidden ${isDarkMode ? 'bg-slate-800' : 'bg-gray-100'}`}>
+                            <div className="h-full bg-gradient-to-r from-blue-500 to-green-400 animate-[width_3s_ease-in-out_forwards]" style={{width: '0%'}}></div>
+                         </div>
                      </div>
                  </div>
              </div>
@@ -239,12 +273,30 @@ const App: React.FC = () => {
 
     if (verificationStatus === 'error') {
          return (
-             <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 px-4 text-center">
-                 <div className="bg-white p-8 rounded-2xl shadow-xl max-w-sm w-full animate-pop-in">
-                     <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600 text-3xl">!</div>
-                     <h2 className="text-2xl font-bold text-gray-800 mb-2">Link Inválido ou Expirado</h2>
-                     <p className="text-gray-600 mb-6">Não foi possível verificar seu email. O link pode já ter sido usado ou expirou.</p>
-                     <button onClick={() => { setVerificationStatus(null); navigateTo('LOGIN'); }} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold transition-colors">Voltar para Login</button>
+             <div className={`min-h-screen flex flex-col items-center justify-center px-4 transition-colors ${isDarkMode ? 'bg-slate-950' : 'bg-gray-50'}`}>
+                 <div className="mb-8 scale-110">
+                    <Logo isDark={isDarkMode} />
+                 </div>
+                 <div className={`w-full max-w-md p-8 rounded-3xl shadow-2xl text-center animate-pop-in relative overflow-hidden ${isDarkMode ? 'bg-slate-900 border border-slate-800' : 'bg-white border border-gray-100'}`}>
+                     <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 to-orange-500"></div>
+
+                     <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                         <XCircle className="w-10 h-10 text-red-500" strokeWidth={2} />
+                     </div>
+
+                     <h2 className={`text-2xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                         Link Expirado ou Inválido
+                     </h2>
+                     <p className={`text-sm mb-8 leading-relaxed ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                         Não foi possível verificar seu e-mail. O link pode já ter sido utilizado ou o tempo limite expirou.
+                     </p>
+
+                     <button 
+                        onClick={() => { setVerificationStatus(null); navigateTo('LOGIN'); }} 
+                        className="w-full py-3.5 bg-gray-900 hover:bg-black text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-xl active:scale-95 flex items-center justify-center gap-2"
+                     >
+                        Voltar para Login <ArrowRight size={18} />
+                     </button>
                  </div>
              </div>
          );

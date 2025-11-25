@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User } from '../types';
 import { useTheme } from '../App';
-import { Camera, Save, User as UserIcon, Mail, Phone, Briefcase, MapPin, Loader2, CheckCircle, Trophy } from 'lucide-react';
+import { Camera, Save, User as UserIcon, Mail, Phone, Briefcase, MapPin, Loader2, CheckCircle, Trophy, ChevronDown } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import { doc, setDoc, collection, query, where, getDocs, writeBatch, updateDoc, increment, arrayUnion } from 'firebase/firestore';
 
@@ -10,12 +10,48 @@ interface ProfilePageProps {
   user: User;
 }
 
+// Opções padronizadas para garantir consistência no Ranking
+const DEPARTMENTS = [
+  "Administrativo",
+  "Comercial / Vendas",
+  "Diretoria",
+  "Engenharia",
+  "Financeiro",
+  "Jurídico",
+  "Logística",
+  "Marketing",
+  "Operações",
+  "Produto",
+  "Recursos Humanos (RH)",
+  "Sucesso do Cliente (CS)",
+  "Tecnologia (TI)"
+];
+
+const JOB_TITLES = [
+  "CEO / Presidente",
+  "VP / Diretor",
+  "Gerente",
+  "Coordenador / Líder",
+  "Product Manager",
+  "Product Owner",
+  "Tech Lead",
+  "Desenvolvedor Sênior",
+  "Desenvolvedor Pleno",
+  "Desenvolvedor Júnior",
+  "Designer / UX/UI",
+  "Analista Sênior",
+  "Analista Pleno",
+  "Analista Júnior",
+  "Assistente",
+  "Estagiário",
+  "Trainee"
+];
+
 export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
     const { isDarkMode } = useTheme();
     const fileInputRef = useRef<HTMLInputElement>(null);
     
     // Form State
-    // NOTA: Mapeamos "Cargo" para 'jobTitle' para não sobrescrever a permissão 'role' do sistema.
     const [formData, setFormData] = useState({
         name: user.name || '',
         jobTitle: user.jobTitle || '', 
@@ -55,7 +91,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
     }, [successMsg]);
 
     // Handle Input Changes
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -64,10 +100,20 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            // Validation: Max 2MB
+            const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+            if (file.size > maxSize) {
+                setSuccessMsg('Erro: A imagem deve ter no máximo 2MB.');
+                // Reset input to allow retrying
+                if (fileInputRef.current) fileInputRef.current.value = '';
+                return;
+            }
+
             const reader = new FileReader();
             reader.onloadend = () => {
                 setAvatarPreview(reader.result as string);
                 setImageLoadError(false); // Reseta erro ao carregar nova imagem
+                setSuccessMsg(''); // Clear previous errors
             };
             reader.readAsDataURL(file);
         }
@@ -190,9 +236,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
                             <div className="w-32 h-32 rounded-full border-4 border-white dark:border-slate-700 shadow-2xl overflow-hidden bg-white relative z-10 group">
                                 {isValidAvatar ? (
                                     <img 
+                                        key={avatarPreview} // Forces re-mount to trigger animation on change
                                         src={avatarPreview} 
                                         alt="Avatar" 
-                                        className="w-full h-full object-cover" 
+                                        className="w-full h-full object-cover animate-pop-in" 
                                         onError={() => setImageLoadError(true)}
                                     />
                                 ) : (
@@ -229,17 +276,23 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
                             />
                         </div>
 
-                        <div className="relative z-10 w-full">
-                            <h2 className="text-2xl font-bold mb-1 truncate">{formData.name || 'Seu Nome'}</h2>
+                        <div className="relative z-10 w-full flex flex-col items-center">
+                            <h2 className="text-2xl font-bold mb-1 truncate max-w-full">{formData.name || 'Seu Nome'}</h2>
                             
                             {/* Mostra o Cargo Profissional (jobTitle) se existir, ou o Role do sistema se não */}
-                            <p className={`text-sm mb-6 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                            <p className={`text-sm mb-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
                                 {formData.jobTitle || user.role || 'Colaborador'}
                             </p>
+
+                            {/* Points Display */}
+                            <div className={`inline-flex items-center gap-2 px-5 py-2 rounded-full mb-6 font-bold text-sm shadow-sm transition-transform hover:scale-105 cursor-default ${isDarkMode ? 'bg-slate-900 border border-slate-700 text-yellow-400' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'}`}>
+                                <Trophy size={16} fill="currentColor" className="text-yellow-500" />
+                                <span>{user.points || 0} pts</span>
+                            </div>
                             
-                            <div className={`flex items-center justify-center gap-2 text-sm py-2 px-4 rounded-full mb-2 ${isDarkMode ? 'bg-slate-900/50 text-gray-300' : 'bg-gray-50 text-gray-600'}`}>
-                                <Mail size={14} />
-                                <span className="truncate max-w-[200px]">{user.email || 'email@exemplo.com'}</span>
+                            <div className={`flex items-center justify-center gap-2 text-sm py-2 px-4 rounded-full w-full ${isDarkMode ? 'bg-slate-900/50 text-gray-300' : 'bg-gray-50 text-gray-600'}`}>
+                                <Mail size={14} className="shrink-0" />
+                                <span className="truncate">{user.email || 'email@exemplo.com'}</span>
                             </div>
                         </div>
                     </div>
@@ -302,29 +355,47 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            
+                            {/* Dropdown de Cargo */}
                             <div className="space-y-2">
                                 <label className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Cargo</label>
-                                <input 
-                                    type="text" 
-                                    name="jobTitle" 
-                                    value={formData.jobTitle}
-                                    onChange={handleChange}
-                                    placeholder="Ex: Desenvolvedor Senior"
-                                    className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-blue-500 outline-none transition-all ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white placeholder-slate-500' : 'bg-gray-50 border-gray-200 focus:bg-white'}`}
-                                />
+                                <div className="relative">
+                                    <select 
+                                        name="jobTitle" 
+                                        value={formData.jobTitle}
+                                        onChange={handleChange}
+                                        className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none cursor-pointer ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-gray-50 border-gray-200 focus:bg-white'}`}
+                                    >
+                                        <option value="" disabled>Selecione seu cargo</option>
+                                        {JOB_TITLES.map((title) => (
+                                            <option key={title} value={title} className={isDarkMode ? 'bg-slate-800' : 'bg-white'}>
+                                                {title}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`} />
+                                </div>
                             </div>
+
+                            {/* Dropdown de Departamento */}
                             <div className="space-y-2">
                                 <label className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Departamento / Setor</label>
                                 <div className="relative">
                                     <MapPin className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`} />
-                                    <input 
-                                        type="text" 
+                                    <select 
                                         name="department"
                                         value={formData.department}
                                         onChange={handleChange}
-                                        placeholder="Ex: Tecnologia"
-                                        className={`w-full pl-11 pr-4 py-3 rounded-xl border focus:ring-2 focus:ring-blue-500 outline-none transition-all ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white placeholder-slate-500' : 'bg-gray-50 border-gray-200 focus:bg-white'}`}
-                                    />
+                                        className={`w-full pl-11 pr-10 py-3 rounded-xl border focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none cursor-pointer ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-gray-50 border-gray-200 focus:bg-white'}`}
+                                    >
+                                        <option value="" disabled>Selecione seu departamento</option>
+                                        {DEPARTMENTS.map((dept) => (
+                                            <option key={dept} value={dept} className={isDarkMode ? 'bg-slate-800' : 'bg-white'}>
+                                                {dept}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`} />
                                 </div>
                             </div>
                         </div>
