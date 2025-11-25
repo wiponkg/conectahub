@@ -128,6 +128,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
   };
 
   const greeting = getGreeting(user.name);
+  const isPostButtonDisabled = isLoading || !newPostText.trim();
 
   return (
     <div className={`p-8 md:p-12 max-w-7xl mx-auto animate-fade-in relative transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
@@ -193,8 +194,13 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({ user }) => {
                     />
                     <button 
                         onClick={handlePostSubmit}
-                        disabled={isLoading || !newPostText.trim()}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-blue-600 hover:text-blue-800 transition-colors hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isPostButtonDisabled}
+                        className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full transition-all duration-200 ${
+                            isPostButtonDisabled 
+                                ? 'text-gray-400 cursor-not-allowed opacity-50' 
+                                : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:hover:bg-slate-700 hover:scale-110 active:scale-95'
+                        }`}
+                        title={!newPostText.trim() ? "Escreva algo para publicar" : "Publicar"}
                     >
                         <Send size={18} />
                     </button>

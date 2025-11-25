@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ViewState } from '../types';
 import { Logo } from './Logo';
-import { Sun, Moon, Loader2, Eye, EyeOff, MailWarning, Send } from 'lucide-react';
+import { Sun, Moon, Loader2, Eye, EyeOff, MailWarning, Send, Copy } from 'lucide-react';
 import { useTheme } from '../App';
 import { auth, db } from '../lib/firebase';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut, sendEmailVerification } from 'firebase/auth';
@@ -62,6 +62,12 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
         console.error("Google Login Error:", err);
         if (err.code === 'auth/popup-closed-by-user') {
             setError('O login foi cancelado.');
+        } else if (err.code === 'auth/unauthorized-domain') {
+            // Mostrar o domínio atual para facilitar a configuração
+            const currentDomain = window.location.hostname;
+            setError(`Domínio não autorizado: ${currentDomain}`);
+        } else if (err.code === 'auth/operation-not-allowed') {
+            setError('Login com Google não habilitado no Firebase Console.');
         } else {
             setError('Erro ao conectar com Google. Tente novamente.');
         }
@@ -200,6 +206,12 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
     }
   };
 
+  const copyDomainToClipboard = () => {
+      const domain = window.location.hostname;
+      navigator.clipboard.writeText(domain);
+      alert(`Domínio copiado: ${domain}\nAdicione-o em Firebase Console > Auth > Settings > Authorized Domains`);
+  };
+
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-white text-gray-900'}`}>
       <header className={`flex justify-between items-center px-8 py-6 w-full max-w-7xl mx-auto`}>
@@ -282,11 +294,20 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
                 </div>
 
                 {error && (
-                    <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-100 dark:border-red-800 animate-pulse">
-                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm font-medium justify-center">
-                            <MailWarning size={16} />
+                    <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-100 dark:border-red-800 animate-pulse flex flex-col items-center">
+                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm font-medium justify-center text-center">
+                            <MailWarning size={16} className="shrink-0" />
                             {error}
                         </div>
+                        {error.includes("Domínio não autorizado") && (
+                            <button
+                                type="button"
+                                onClick={copyDomainToClipboard}
+                                className="mt-2 flex items-center gap-1 text-xs bg-red-100 dark:bg-red-800/50 text-red-700 dark:text-red-200 px-2 py-1 rounded hover:bg-red-200 transition-colors"
+                            >
+                                <Copy size={12} /> Copiar Domínio
+                            </button>
+                        )}
                         {showResend && (
                              <button 
                                 type="button"

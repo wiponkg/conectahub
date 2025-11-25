@@ -122,6 +122,8 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
         console.error("Google Register Error:", err);
         if (err.code === 'auth/popup-closed-by-user') {
             setError('O cadastro foi cancelado.');
+        } else if (err.code === 'auth/unauthorized-domain') {
+            setError('Domínio não autorizado. Adicione este domínio no Firebase Console.');
         } else {
             setError('Erro ao conectar com Google. Tente novamente.');
         }
