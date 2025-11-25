@@ -2,9 +2,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User } from '../types';
 import { useTheme } from '../App';
-import { Camera, Save, User as UserIcon, Mail, Phone, Briefcase, MapPin, Loader2, CheckCircle, Trophy, ChevronDown } from 'lucide-react';
+import { Camera, Save, User as UserIcon, Mail, Phone, Briefcase, MapPin, Loader2, CheckCircle, Trophy, ChevronDown, Sparkles } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
-import { doc, setDoc, collection, query, where, getDocs, writeBatch, updateDoc, increment, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, getDocs, writeBatch, updateDoc, increment, arrayUnion, getDoc } from 'firebase/firestore';
 
 interface ProfilePageProps {
   user: User;
@@ -63,6 +63,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
     const [avatarPreview, setAvatarPreview] = useState(user.avatar);
     const [isLoading, setIsLoading] = useState(false);
     const [successMsg, setSuccessMsg] = useState('');
+    const [showCelebration, setShowCelebration] = useState(false);
     
     // Estado para controlar se a imagem falhou ao carregar (link quebrado)
     const [imageLoadError, setImageLoadError] = useState(false);
@@ -85,10 +86,20 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
         if (successMsg) {
             const timer = setTimeout(() => {
                 setSuccessMsg('');
-            }, 4000); // Aumentei um pouco o tempo para ler a msg de pontos
+            }, 6000); // Increased time for longer messages
             return () => clearTimeout(timer);
         }
     }, [successMsg]);
+
+    // Effect to handle celebration timer
+    useEffect(() => {
+        if (showCelebration) {
+            const timer = setTimeout(() => {
+                setShowCelebration(false);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [showCelebration]);
 
     // Handle Input Changes
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -124,6 +135,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
         e.preventDefault();
         setIsLoading(true);
         setSuccessMsg('');
+        setShowCelebration(false);
 
         try {
             if (auth.currentUser) {
@@ -141,29 +153,44 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
                 }, { merge: true });
 
                 // GAMIFICATION CHECK: Completar Perfil
-                // Critérios: Ter Avatar E Bio preenchida
-                const hasAvatar = avatarPreview && avatarPreview.trim().length > 0;
-                const hasBio = formData.bio && formData.bio.trim().length > 10; // Mínimo de 10 caracteres para considerar "preenchido"
+                // Fetch fresh data to ensure we are checking the latest state of 'completedMissions'
+                const userSnap = await getDoc(userRef);
+                const userData = userSnap.data();
+                const currentCompletedMissions = userData?.completedMissions || [];
                 const missionId = 'profile';
-                
-                // Verifica se já completou a missão antes (usando a prop user atualizada)
-                const alreadyCompleted = user.completedMissions?.includes(missionId);
-                let pointsAwarded = false;
+                const alreadyCompleted = currentCompletedMissions.includes(missionId);
 
-                if (hasAvatar && hasBio && !alreadyCompleted) {
-                    // Adiciona pontos e marca missão como completa
-                    await updateDoc(userRef, {
-                        points: increment(100), // 100 pontos conforme QuizPage
-                        completedMissions: arrayUnion(missionId)
-                    });
-                    pointsAwarded = true;
+                // Critérios: Ter Avatar E Bio preenchida (min 5 chars)
+                const hasAvatar = avatarPreview && avatarPreview.trim().length > 0;
+                const hasBio = formData.bio && formData.bio.trim().length >= 5; 
+
+                let pointsAwarded = false;
+                let feedbackMsg = 'Perfil atualizado com sucesso!';
+
+                if (!alreadyCompleted) {
+                    if (hasAvatar && hasBio) {
+                        // Adiciona pontos e marca missão como completa
+                        await updateDoc(userRef, {
+                            points: increment(100), 
+                            completedMissions: arrayUnion(missionId)
+                        });
+                        pointsAwarded = true;
+                    } else {
+                         // Determine what is missing for feedback
+                        const missing = [];
+                        if (!hasAvatar) missing.push("uma foto de perfil");
+                        if (!hasBio) missing.push("uma bio (min. 5 letras)");
+                        
+                        if (missing.length > 0) {
+                            feedbackMsg = `Salvo! Adicione ${missing.join(' e ')} para ganhar 100 pontos.`;
+                        }
+                    }
                 }
 
                 // 2. Cascade Update: Find all posts by this user and update avatar/name
                 // This ensures the feed reflects the new profile picture immediately.
                 try {
                     const postsRef = collection(db, "posts");
-                    // Assuming we implemented 'authorId' in DashboardHome posts
                     const q = query(postsRef, where("authorId", "==", uid));
                     const querySnapshot = await getDocs(q);
 
@@ -185,16 +212,16 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
                 }
                 
                 if (pointsAwarded) {
-                    setSuccessMsg('Perfil salvo! +100 Pontos por completar seu perfil! 🏆');
+                    setShowCelebration(true); // Ativa o Overlay
+                    setSuccessMsg('Missão Completa! +100 Pontos'); 
                 } else {
-                    setSuccessMsg('Perfil atualizado com sucesso!');
+                    setSuccessMsg(feedbackMsg);
                 }
             } else {
                 setSuccessMsg('Erro: Usuário não autenticado.');
             }
         } catch (error: any) {
             console.error("Error updating profile:", error);
-            // Mostra o erro real no console para facilitar debug
             if (error.code === 'permission-denied') {
                 setSuccessMsg('Erro de permissão. Verifique as Regras do Firestore.');
             } else {
@@ -221,7 +248,43 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
                           !imageLoadError;
 
     return (
-        <div className={`p-6 md:p-12 max-w-7xl mx-auto min-h-full font-sans animate-fade-in ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+        <div className={`p-6 md:p-12 max-w-7xl mx-auto min-h-full font-sans animate-fade-in relative ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+            
+            {/* --- CELEBRATION OVERLAY --- */}
+            {showCelebration && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowCelebration(false)}></div>
+                    <div className="relative z-10 animate-pop-in">
+                        <div className="bg-gradient-to-br from-yellow-400 to-orange-600 p-1 rounded-[2rem] shadow-[0_0_50px_rgba(250,204,21,0.5)]">
+                            <div className={`bg-white dark:bg-slate-900 rounded-[1.8rem] p-8 md:p-12 text-center flex flex-col items-center relative overflow-hidden`}>
+                                {/* Background Rays */}
+                                <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-yellow-300 via-transparent to-transparent animate-pulse"></div>
+                                
+                                <div className="relative mb-6">
+                                    <Sparkles className="absolute -top-4 -right-8 text-yellow-400 w-8 h-8 animate-spin-slow" />
+                                    <Sparkles className="absolute bottom-0 -left-8 text-yellow-400 w-6 h-6 animate-pulse" />
+                                    <div className="w-24 h-24 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mb-2 mx-auto ring-4 ring-yellow-400 ring-opacity-50">
+                                        <Trophy size={48} className="text-yellow-500 animate-bounce" fill="currentColor" />
+                                    </div>
+                                </div>
+
+                                <h2 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-orange-600 mb-2 uppercase tracking-tight">
+                                    Missão Completa!
+                                </h2>
+                                <p className={`text-lg md:text-xl font-medium mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    Seu perfil agora está completo.
+                                </p>
+
+                                <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-8 py-3 rounded-full font-black text-xl md:text-2xl shadow-lg transform scale-110 mb-2">
+                                    +100 PONTOS
+                                </div>
+                                <p className="text-xs text-gray-400 mt-4 uppercase tracking-wider font-bold">Ranking Atualizado</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <h1 className="text-3xl md:text-4xl font-bold mb-8">Editar Perfil</h1>
 
             <div className="flex flex-col lg:flex-row gap-8">
@@ -336,7 +399,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
                         </div>
 
                         <div className="space-y-2 mb-8">
-                            <label className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Bio / Sobre Você (Mín. 10 caracteres)</label>
+                            <label className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Bio / Sobre Você (Mín. 5 caracteres)</label>
                             <textarea 
                                 name="bio"
                                 rows={4}
@@ -402,8 +465,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
 
                         <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-100 dark:border-slate-700">
                              {successMsg && (
-                                <div className={`flex items-center gap-2 text-sm font-bold animate-pulse ${successMsg.includes('Erro') ? 'text-red-500' : 'text-green-500'}`}>
-                                    {successMsg.includes('Pontos') ? <Trophy size={18} className="text-yellow-500" /> : successMsg.includes('Erro') ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}
+                                <div className={`flex items-center gap-2 text-sm font-bold animate-pulse ${successMsg.includes('Salvo!') ? 'text-yellow-600 dark:text-yellow-400' : (successMsg.includes('Erro') ? 'text-red-500' : 'text-green-500')}`}>
+                                    {successMsg.includes('Erro') ? <Loader2 className="animate-spin" size={18} /> : (successMsg.includes('Salvo!') ? <CheckCircle size={18} /> : <CheckCircle size={18} />)}
                                     {successMsg}
                                 </div>
                              )}

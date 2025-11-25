@@ -187,8 +187,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, curr
       {/* MOBILE OVERLAY BACKDROP */}
       {isMobileMenuOpen && (
           <div 
-            className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
+            className="fixed inset-0 bg-black/50 z-[45] md:hidden backdrop-blur-sm animate-fade-in"
             onClick={() => setIsMobileMenuOpen(false)}
+            aria-hidden="true"
           />
       )}
 

@@ -5,7 +5,7 @@ import { Logo } from './Logo';
 import { Sun, Moon, Loader2, Eye, EyeOff, MailWarning, Send, Copy, Clock, CheckCircle, ArrowLeft, KeyRound, Mail } from 'lucide-react';
 import { useTheme } from '../App';
 import { auth, db } from '../lib/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendEmailVerification, sendPasswordResetEmail, fetchSignInMethodsForEmail } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AuthProps {
@@ -219,6 +219,25 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
         // If verified, App.tsx will redirect automatically
     } catch (err: any) {
         console.error(err);
+        
+        // --- INTELLIGENT ERROR HANDLING FOR GOOGLE ACCOUNTS ---
+        // Se a senha estiver errada ou credencial inválida, verificamos se o email existe como conta Google
+        if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+            try {
+                // Tenta descobrir como esse email está cadastrado
+                const methods = await fetchSignInMethodsForEmail(auth, email);
+                if (methods && methods.includes('google.com')) {
+                    setError('Esta conta foi criada com o Google. Por favor, clique no botão "Entrar com o Google" acima.');
+                    setIsLoading(false);
+                    return;
+                }
+            } catch (fetchErr) {
+                // Se o Firebase bloquear a enumeração de emails (comum em produção), ignoramos esse check silenciosamente
+                console.log("Enumeration protection enabled or error checking methods", fetchErr);
+            }
+        }
+        // ------------------------------------------------------
+
         if (err.code === 'auth/invalid-credential') {
             setError('Email ou senha incorretos.');
         } else if (err.code === 'auth/user-not-found') {
