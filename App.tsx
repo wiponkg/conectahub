@@ -1,3 +1,4 @@
+
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import { LandingPage } from './components/LandingPage';
 import { LoginPage } from './components/LoginPage';
@@ -10,10 +11,10 @@ import { QuizPage } from './components/QuizPage';
 import { ProfilePage } from './components/ProfilePage';
 import { ViewState, User, DEFAULT_USER } from './types';
 import { auth, db } from './lib/firebase';
-import { onAuthStateChanged, signOut, applyActionCode } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged, signOut, applyActionCode, User as FirebaseUser } from 'firebase/auth';
 import { Logo } from './components/Logo';
-import { CheckCircle2, XCircle, Loader2, ArrowRight } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
 
 // Theme Context Definition
 interface ThemeContextType {
@@ -40,7 +41,7 @@ const App: React.FC = () => {
   };
 
   // Helper to construct user object
-  const constructUser = (firebaseUser: any, firestoreData: any = {}) => {
+  const constructUser = (firebaseUser: FirebaseUser, firestoreData: any = {}) => {
       let newAvatar = firestoreData.avatar !== undefined ? firestoreData.avatar : (firebaseUser.photoURL || DEFAULT_USER.avatar);
       if (newAvatar && (newAvatar.includes("ui-avatars.com") || newAvatar === "undefined")) {
           newAvatar = "";
@@ -71,7 +72,7 @@ const App: React.FC = () => {
         if (mode === 'verifyEmail' && oobCode) {
             setVerificationStatus('verifying');
             try {
-                // 1. Apply the verification code to Firebase Auth
+                // 1. Apply the verification code using modular auth
                 await applyActionCode(auth, oobCode);
                 
                 // 2. Refresh the current user token to reflect the change
@@ -81,10 +82,6 @@ const App: React.FC = () => {
                     // 3. Force update application state immediately
                     const updatedUser = auth.currentUser;
                     if (updatedUser?.emailVerified) {
-                        // Fetch Firestore data to complete login
-                        // This handles the "I clicked the link, now log me in" flow
-                        // Note: actual user data loading happens in onAuthStateChanged mostly, 
-                        // but we trigger a manual view update here for UX speed.
                          setVerificationStatus('success');
                     }
                 } else {
@@ -115,11 +112,6 @@ const App: React.FC = () => {
 
   // Listen to Firebase Auth state changes
   useEffect(() => {
-    if (!auth) {
-        setIsLoading(false);
-        return;
-    }
-
     let userUnsubscribe: (() => void) | null = null;
 
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -138,7 +130,6 @@ const App: React.FC = () => {
 
             // SECURITY CHECK: Email Verification
             // IMPORTANT: If we are actively verifying (isVerifyingURL is true), DO NOT log out yet.
-            // Let the verification effect finish its job.
             if (!firebaseUser.emailVerified && !isVerifyingURL) {
                 setCurrentUser(null);
                 setIsLoading(false);
@@ -203,17 +194,13 @@ const App: React.FC = () => {
         return;
     }
     if (view === 'LANDING' && currentUser) {
-        if (auth) signOut(auth);
+        signOut(auth);
         setCurrentUser(null);
     }
     setCurrentView(view);
   };
 
   const renderView = () => {
-    // ----------------------------------------------------------------------
-    // GLOBAL LOADING & VERIFICATION STATES (Visual Overhaul)
-    // ----------------------------------------------------------------------
-
     if (isLoading || verificationStatus === 'verifying') {
         return (
             <div className={`min-h-screen flex flex-col items-center justify-center gap-6 transition-colors duration-500 ${isDarkMode ? 'bg-slate-950' : 'bg-gray-50'}`}>
@@ -244,7 +231,6 @@ const App: React.FC = () => {
                     <Logo isDark={isDarkMode} />
                  </div>
                  <div className={`w-full max-w-md p-8 rounded-3xl shadow-2xl text-center animate-pop-in relative overflow-hidden ${isDarkMode ? 'bg-slate-900 border border-slate-800' : 'bg-white border border-gray-100'}`}>
-                     {/* Confetti / Decoration Background */}
                      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-emerald-600"></div>
                      
                      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-[popIn_0.6s_cubic-bezier(0.175,0.885,0.32,1.275)_forwards]">

@@ -1,11 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { ViewState } from '../types';
 import { Logo } from './Logo';
 import { Sun, Moon, Loader2, Eye, EyeOff, MailWarning, Send, Copy, Clock, CheckCircle, ArrowLeft, KeyRound, Mail } from 'lucide-react';
 import { useTheme } from '../App';
-import { auth, db } from '../lib/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendEmailVerification, sendPasswordResetEmail, fetchSignInMethodsForEmail } from 'firebase/auth';
+import { auth, db, googleProvider } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, fetchSignInMethodsForEmail, sendEmailVerification } from 'firebase/auth';
 
 interface AuthProps {
   onNavigate: (view: ViewState) => void;
@@ -61,21 +62,22 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
     setError('');
 
     try {
-        const provider = new GoogleAuthProvider();
-        const result = await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
 
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
+        if (user) {
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
 
-        if (!userDoc.exists()) {
-            await setDoc(userDocRef, {
-                name: user.displayName || 'Usuário Google',
-                email: user.email,
-                role: 'Colaborador',
-                avatar: user.photoURL || "", 
-                createdAt: new Date().toISOString()
-            });
+            if (!userDoc.exists()) {
+                await setDoc(userDocRef, {
+                    name: user.displayName || 'Usuário Google',
+                    email: user.email,
+                    role: 'Colaborador',
+                    avatar: user.photoURL || "", 
+                    createdAt: new Date().toISOString()
+                });
+            }
         }
     } catch (err: any) {
         console.error("Google Login Error:", err);
@@ -100,7 +102,6 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
           return;
       }
       
-      // Validação básica de email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(resetEmail)) {
           setError('Email com formato inválido.');
@@ -117,8 +118,6 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
       } catch (err: any) {
           console.error("Password reset error:", err);
           if (err.code === 'auth/user-not-found') {
-              // Por segurança, às vezes é melhor não dizer que o email não existe, 
-              // mas para UX interna vamos avisar
               setError('Não encontramos uma conta com este email.');
           } else if (err.code === 'auth/invalid-email') {
               setError('Email inválido.');
@@ -156,7 +155,7 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
               }
           }
 
-          if (user.emailVerified) {
+          if (user && user.emailVerified) {
               setResendSuccess("Seu email já está verificado! Recarregando...");
               setTimeout(() => window.location.reload(), 1500);
               return;
@@ -167,7 +166,9 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
               handleCodeInApp: true,
           };
 
-          await sendEmailVerification(user, actionCodeSettings);
+          if (user) {
+              await sendEmailVerification(user, actionCodeSettings);
+          }
 
           setResendSuccess("Email reenviado! Verifique Caixa de Entrada e SPAM.");
           setResendCooldown(60); 
@@ -205,25 +206,22 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        await user.reload();
+        if (user) {
+            await user.reload();
 
-        if (!user.emailVerified) {
-            // Customize error for verification needed
-            setError('Email não verificado.'); 
-            setShowResend(true);
-            setIsLoading(false);
-            return;
+            if (!user.emailVerified) {
+                setError('Email não verificado.'); 
+                setShowResend(true);
+                setIsLoading(false);
+                return;
+            }
         }
 
-        // If verified, App.tsx will redirect automatically
     } catch (err: any) {
         console.error(err);
         
-        // --- INTELLIGENT ERROR HANDLING FOR GOOGLE ACCOUNTS ---
-        // Se a senha estiver errada ou credencial inválida, verificamos se o email existe como conta Google
         if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
             try {
-                // Tenta descobrir como esse email está cadastrado
                 const methods = await fetchSignInMethodsForEmail(auth, email);
                 if (methods && methods.includes('google.com')) {
                     setError('Esta conta foi criada com o Google. Por favor, clique no botão "Entrar com o Google" acima.');
@@ -231,11 +229,9 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
                     return;
                 }
             } catch (fetchErr) {
-                // Se o Firebase bloquear a enumeração de emails (comum em produção), ignoramos esse check silenciosamente
                 console.log("Enumeration protection enabled or error checking methods", fetchErr);
             }
         }
-        // ------------------------------------------------------
 
         if (err.code === 'auth/invalid-credential') {
             setError('Email ou senha incorretos.');

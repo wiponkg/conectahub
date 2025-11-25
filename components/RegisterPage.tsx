@@ -1,11 +1,12 @@
+
 import React, { useState } from 'react';
 import { ViewState } from '../types';
 import { Logo } from './Logo';
-import { Sun, Moon, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Sun, Moon, Loader2, CheckCircle } from 'lucide-react';
 import { useTheme } from '../App';
-import { auth, db } from '../lib/firebase';
-import { createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
+import { auth, db, googleProvider } from '../lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, signInWithPopup, sendEmailVerification, signOut } from 'firebase/auth';
 
 interface AuthProps {
   onNavigate: (view: ViewState) => void;
@@ -20,7 +21,6 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
     confirmPassword: ''
   });
 
-  // Estado para erros específicos de cada campo
   const [fieldErrors, setFieldErrors] = useState({
     name: '',
     email: '',
@@ -34,7 +34,6 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
   const [isLoading, setIsLoading] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
 
-  // Função auxiliar de validação
   const validateField = (name: string, value: string, allData: typeof formData) => {
       let errorMsg = '';
       switch (name) {
@@ -43,7 +42,6 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
               else if (value.trim().length < 3) errorMsg = 'O nome deve ter pelo menos 3 caracteres.';
               break;
           case 'email':
-              // Validação rigorosa de formato de email
               const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
               if (!value.trim()) errorMsg = 'O email é obrigatório.';
               else if (!emailRegex.test(value)) errorMsg = 'Formato inválido. Use: nome@exemplo.com';
@@ -63,23 +61,18 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     
-    // Calcula o próximo estado do formulário para validar corretamente dependências (senha x confirmação)
     const nextFormData = { ...formData, [name]: value };
     setFormData(nextFormData);
     
-    if (error) setError(''); // Limpa erro geral
+    if (error) setError(''); 
 
-    // Valida o campo atual
     const errorMsg = validateField(name, value, nextFormData);
 
     setFieldErrors(prev => {
         const newErrors = { ...prev, [name]: errorMsg };
-
-        // Caso especial: se mudar a senha, revalidar a confirmação se ela já tiver sido preenchida
         if (name === 'password' && nextFormData.confirmPassword) {
             newErrors.confirmPassword = nextFormData.confirmPassword !== value ? 'As senhas não conferem.' : '';
         }
-        
         return newErrors;
     });
   };
@@ -94,30 +87,25 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
     setError('');
 
     try {
-        const provider = new GoogleAuthProvider();
-        const result = await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
 
-        // Verificar se já existe (Google Sign-In funciona como Login ou Cadastro)
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
+        if (user) {
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
 
-        if (!userDoc.exists()) {
-            // Cria o perfil se for novo usuário com dados iniciais de gamificação
-             await setDoc(userDocRef, {
-                name: user.displayName || 'Usuário Google',
-                email: user.email,
-                role: 'Colaborador',
-                avatar: user.photoURL || "", 
-                points: 0,
-                completedMissions: [],
-                createdAt: new Date().toISOString()
-            });
+            if (!userDoc.exists()) {
+                 await setDoc(userDocRef, {
+                    name: user.displayName || 'Usuário Google',
+                    email: user.email,
+                    role: 'Colaborador',
+                    avatar: user.photoURL || "", 
+                    points: 0,
+                    completedMissions: [],
+                    createdAt: new Date().toISOString()
+                });
+            }
         }
-        
-        // Se estiver na tela de registro, mas logou com Google, fazemos o comportamento padrão do Google Sign-in:
-        // O App.tsx detecta o user e redireciona para a Dashboard.
-
     } catch (err: any) {
         console.error("Google Register Error:", err);
         if (err.code === 'auth/popup-closed-by-user') {
@@ -135,7 +123,6 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Valida todos os campos antes de enviar
     const errors = {
         name: validateField('name', formData.name, formData),
         email: validateField('email', formData.email, formData),
@@ -168,64 +155,60 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
         const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
         const user = userCredential.user;
 
-        // 2. Save User Profile in Firestore with Gamification Fields
-        const saveProfilePromise = async () => {
-             // NÃO geramos avatar automático. Deixamos vazio para o frontend gerar as iniciais.
-             await setDoc(doc(db, "users", user.uid), {
-                name: formData.name, // Nome exato digitado
-                email: formData.email,
-                role: 'Colaborador',
-                avatar: "", // Vazio para indicar "sem foto"
-                points: 0, // Inicializa pontos
-                completedMissions: [], // Inicializa missões
-                createdAt: new Date().toISOString()
-            });
-        };
-
-        // Allow max 3 seconds for profile save
-        try {
-            await Promise.race([
-                saveProfilePromise(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
-            ]);
-        } catch (profileErr) {
-            console.warn("Profile save warning (proceeding anyway):", profileErr);
-        }
-
-        // 3. Send Email Verification (Validação de existência do email)
-        try {
-            auth.languageCode = 'pt';
-            const actionCodeSettings = {
-                url: window.location.origin, 
-                handleCodeInApp: true,
+        if (user) {
+            // 2. Save User Profile in Firestore
+            const saveProfilePromise = async () => {
+                 await setDoc(doc(db, "users", user.uid), {
+                    name: formData.name, 
+                    email: formData.email,
+                    role: 'Colaborador',
+                    avatar: "", 
+                    points: 0, 
+                    completedMissions: [], 
+                    createdAt: new Date().toISOString()
+                });
             };
 
-            const targetUser = auth.currentUser || user;
-            await sendEmailVerification(targetUser, actionCodeSettings);
-            setEmailSentStatus('sent');
+            try {
+                await Promise.race([
+                    saveProfilePromise(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
+                ]);
+            } catch (profileErr) {
+                console.warn("Profile save warning (proceeding anyway):", profileErr);
+            }
 
-        } catch (emailErr: any) {
-             // Se o erro for de domínio não autorizado, tentamos reenviar sem o link de volta
-             if (emailErr.code === 'auth/unauthorized-continue-uri') {
-                 console.warn("Domínio não autorizado. Enviando email sem link de retorno.");
-                 try {
-                     const targetUser = auth.currentUser || user;
-                     await sendEmailVerification(targetUser);
-                     setEmailSentStatus('sent');
-                 } catch (retryErr) {
-                     console.error("Retry failed:", retryErr);
+            // 3. Send Email Verification
+            try {
+                auth.languageCode = 'pt';
+                const actionCodeSettings = {
+                    url: window.location.origin, 
+                    handleCodeInApp: true,
+                };
+
+                await sendEmailVerification(user, actionCodeSettings);
+                setEmailSentStatus('sent');
+
+            } catch (emailErr: any) {
+                 if (emailErr.code === 'auth/unauthorized-continue-uri') {
+                     console.warn("Domínio não autorizado. Enviando email sem link de retorno.");
+                     try {
+                         await sendEmailVerification(user);
+                         setEmailSentStatus('sent');
+                     } catch (retryErr) {
+                         console.error("Retry failed:", retryErr);
+                         setEmailSentStatus('failed');
+                     }
+                 } else {
+                     console.warn("Erro ao enviar email de verificação:", emailErr);
                      setEmailSentStatus('failed');
                  }
-             } else {
-                 console.warn("Erro ao enviar email de verificação:", emailErr);
-                 setEmailSentStatus('failed');
-             }
+            }
+
+            // 4. Sign out immediately
+            await signOut(auth);
         }
 
-        // 4. Sign out immediately to prevent auto-login to Dashboard
-        await signOut(auth);
-
-        // 5. Show success message
         if (emailSentStatus === 'failed') {
              setSuccess('Cadastro realizado! (Não foi possível enviar o email de verificação agora, tente mais tarde).');
         } else {
@@ -241,7 +224,7 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
     } catch (err: any) {
         console.error("Registration error:", err);
         
-        if (auth?.currentUser) {
+        if (auth.currentUser) {
             try { await signOut(auth); } catch(e) {}
         }
         
