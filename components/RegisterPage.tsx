@@ -125,6 +125,7 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
         } else {
             setError('Erro ao conectar com Google. Tente novamente.');
         }
+    } finally {
         setIsLoading(false);
     }
   };
@@ -197,16 +198,26 @@ export const RegisterPage: React.FC<AuthProps> = ({ onNavigate }) => {
                 handleCodeInApp: true,
             };
 
-            if (auth.currentUser) {
-                await sendEmailVerification(auth.currentUser, actionCodeSettings);
-                setEmailSentStatus('sent');
-            } else {
-                await sendEmailVerification(user, actionCodeSettings);
-                setEmailSentStatus('sent');
-            }
-        } catch (emailErr) {
-            console.warn("Erro ao enviar email de verificação:", emailErr);
-            setEmailSentStatus('failed');
+            const targetUser = auth.currentUser || user;
+            await sendEmailVerification(targetUser, actionCodeSettings);
+            setEmailSentStatus('sent');
+
+        } catch (emailErr: any) {
+             // Se o erro for de domínio não autorizado, tentamos reenviar sem o link de volta
+             if (emailErr.code === 'auth/unauthorized-continue-uri') {
+                 console.warn("Domínio não autorizado. Enviando email sem link de retorno.");
+                 try {
+                     const targetUser = auth.currentUser || user;
+                     await sendEmailVerification(targetUser);
+                     setEmailSentStatus('sent');
+                 } catch (retryErr) {
+                     console.error("Retry failed:", retryErr);
+                     setEmailSentStatus('failed');
+                 }
+             } else {
+                 console.warn("Erro ao enviar email de verificação:", emailErr);
+                 setEmailSentStatus('failed');
+             }
         }
 
         // 4. Sign out immediately to prevent auto-login to Dashboard

@@ -55,9 +55,12 @@ const App: React.FC = () => {
 
         if (firebaseUser) {
             // SECURITY CHECK: Email Verification
+            // Note: Google Sign-In usually provides emailVerified: true automatically.
+            // Standard registration users are signed out in RegisterPage before reaching here, 
+            // but if they manage to persist, this catches them.
             if (!firebaseUser.emailVerified) {
-                // Force logout if email is not verified
-                await signOut(auth);
+                // We don't force signOut here immediately to avoid race conditions with "Resend Email" flows.
+                // Instead, we just don't set the currentUser, keeping them in a "guest" state effectively.
                 setCurrentUser(null);
                 setIsLoading(false);
                 return;
@@ -78,11 +81,9 @@ const App: React.FC = () => {
 
             // Redirect logic
             setCurrentView((prevView) => {
-                // Do not auto-redirect if on REGISTER to allow registration flow to complete
-                if (prevView === 'REGISTER') {
-                    return prevView;
-                }
-                if (['LANDING', 'LOGIN'].includes(prevView)) {
+                // If the user is authenticated and verified, we should send them to the Dashboard,
+                // even if they were on Login or Register pages.
+                if (['LANDING', 'LOGIN', 'REGISTER'].includes(prevView)) {
                     return 'DASHBOARD_HOME';
                 }
                 return prevView;

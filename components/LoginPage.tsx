@@ -65,6 +65,7 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
         } else {
             setError('Erro ao conectar com Google. Tente novamente.');
         }
+    } finally {
         setIsLoading(false);
     }
   };
@@ -87,26 +88,57 @@ export const LoginPage: React.FC<AuthProps> = ({ onNavigate }) => {
           if (user.emailVerified) {
               setResendSuccess("Seu email já está verificado! Tente entrar novamente.");
               setShowResend(false);
-              // App.tsx will handle redirect eventually, but we force logout to be clean
               await signOut(auth);
           } else {
               const actionCodeSettings = {
                   url: window.location.origin,
                   handleCodeInApp: true,
               };
-              await sendEmailVerification(user, actionCodeSettings);
+
+              try {
+                  await sendEmailVerification(user, actionCodeSettings);
+              } catch (innerErr: any) {
+                  // Fallback: Se o domínio não estiver na whitelist, tenta enviar sem a URL de redirecionamento
+                  if (innerErr.code === 'auth/unauthorized-continue-uri') {
+                      console.warn("Domínio não autorizado. Enviando email sem link de retorno.");
+                      await sendEmailVerification(user);
+                  } else {
+                      throw innerErr;
+                  }
+              }
+
               await signOut(auth); // Desloga imediatamente
               setResendSuccess("Email reenviado! Verifique sua caixa de entrada e spam.");
               setShowResend(false);
           }
       } catch (err: any) {
           console.error("Resend error:", err);
+          if (err.code === 'auth/unauthorized-continue-uri') {
+              // Fallback para o erro específico na chamada principal (caso ocorra antes do inner try)
+               try {
+                  const user = auth.currentUser;
+                  if (user) {
+                      await sendEmailVerification(user);
+                      await signOut(auth);
+                      setResendSuccess("Email reenviado (modo compatibilidade)! Verifique spam.");
+                      setShowResend(false);
+                      return; 
+                  }
+               } catch (e) {}
+          }
+
           if (err.code === 'auth/too-many-requests') {
               setError("Muitas tentativas. Aguarde um pouco.");
+          } else if (err.code === 'auth/invalid-credential') {
+              setError("Email ou senha incorretos.");
           } else {
               setError("Erro ao reenviar. Verifique seus dados.");
           }
       } finally {
+          // Garante limpeza de sessão se algo falhar mas o login tiver ocorrido
+          if (auth.currentUser) {
+              try { await signOut(auth); } catch (e) {}
+          }
           setResendLoading(false);
       }
   };
