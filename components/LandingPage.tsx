@@ -224,49 +224,44 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                             </div>
                         </div>
 
-                        {/* Right: Circle Geometric Image */}
-                        <div className="relative animate-hero-enter delay-200 flex justify-center md:justify-end mt-8 md:mt-0">
-                             <div className="relative w-[280px] md:w-full max-w-[500px] aspect-square">
-                                {/* The Geometric Shape (Purple Background) */}
-                                <div className="absolute inset-0 rounded-full bg-[#8c8cf5] shadow-2xl"></div>
+                        {/* Right: Geometric Image with Pop-out Effect */}
+                        <div className="relative animate-hero-enter delay-200 flex justify-center md:justify-end mt-12 md:mt-0">
+                             <div className="relative w-[300px] md:w-[480px] min-h-[300px] md:min-h-[400px] flex items-end justify-center">
+                                {/* The Geometric Oval Shape */}
+                                <div className="absolute bottom-0 w-full h-[85%] bg-[#8c8cf5] rounded-[48%] rotate-3 shadow-2xl z-0"></div>
                                 
-                                {/* The Photo Layer (Masked to Circle) */}
-                                <div className="absolute inset-0 overflow-hidden rounded-full border-[6px] border-transparent">
-                                    <img 
-                                        src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2670&auto=format&fit=crop" 
-                                        alt="Team collaboration" 
-                                        className="w-full h-full object-cover"
-                                        style={{ objectPosition: 'center 20%' }}
-                                    />
-                                </div>
+                                {/* The Photo Layer (Pop-out effect) */}
+                                <img 
+                                    src="https://imgur.com/eatNGN9.png"
+                                    alt="Team collaboration" 
+                                    className="relative z-10 w-full h-auto object-contain mb-2 drop-shadow-2xl transform scale-105 hover:scale-110 transition-transform duration-500"
+                                />
                              </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Curved Separator */}
-                <div className="absolute bottom-0 left-0 right-0 w-full translate-y-[98%] z-10">
-                   {/* This matches the grey dip in the print */}
-                   <svg viewBox="0 0 1440 100" className="w-full h-auto min-h-[40px] md:min-h-[60px]" preserveAspectRatio="none">
-                        <path fill={isDarkMode ? '#0f172a' : '#b4b8c5'} d="M0,0 C480,100 960,100 1440,0 L1440,0 L0,0 Z" className="transition-colors duration-300" />
-                   </svg>
+                <div className={`absolute bottom-0 left-0 right-0 w-full overflow-hidden leading-none z-10 transition-colors duration-300 ${isDarkMode ? 'text-slate-950' : 'text-[#0e0e52]'}`}>
+                    <svg className="relative block w-full h-[50px] md:h-[100px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                        <path d="M0,120 L1200,120 L1200,0 C900,120 300,120 0,0 Z" fill="currentColor"></path>
+                    </svg>
                 </div>
             </section>
 
             {/* Blue Section */}
-            <section className={`pt-24 pb-20 relative overflow-hidden transition-colors duration-300 ${isDarkMode ? 'bg-slate-950' : 'bg-[#0e0e52]'}`}>
+            <section className={`pt-32 pb-20 relative overflow-hidden transition-colors duration-300 ${isDarkMode ? 'bg-slate-950' : 'bg-[#0e0e52]'}`}>
                 <div className="max-w-7xl mx-auto px-6 md:px-8 space-y-16">
                     
                     {/* Top Banner Image */}
-                    <div className="w-full h-[200px] md:h-[350px] overflow-hidden relative shadow-2xl rounded-xl md:rounded-none">
+                    <div className="w-full h-[250px] md:h-[480px] overflow-hidden relative shadow-2xl rounded-3xl">
                         <img 
-                            src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=2000" 
+                            src="https://i.imgur.com/qiOi2uk.jpeg" 
                             alt="Meeting Room" 
                             className="w-full h-full object-cover"
-                            style={{ objectPosition: 'center 55%' }}
+                            style={{ objectPosition: 'center 35%' }}
                         />
-                         {/* Blue Tint Overlay */}
-                         <div className={`absolute inset-0 opacity-20 mix-blend-color ${isDarkMode ? 'bg-slate-950' : 'bg-[#0e0e52]'}`}></div>
+                         {/* Overlay removed for natural look */}
                     </div>
 
                     {/* Bottom Grid */}
