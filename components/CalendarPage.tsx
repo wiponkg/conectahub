@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Plus, X, Loader2, Trash2, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Plus, X, Loader2, Trash2, Calendar as CalendarIcon, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../App';
 import { db, auth } from '../lib/firebase';
 import { collection, addDoc, query, onSnapshot, deleteDoc, doc, where } from 'firebase/firestore';
@@ -64,6 +64,8 @@ export const CalendarPage: React.FC = () => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null); // State for delete confirmation
+
   const [newEvent, setNewEvent] = useState({
       title: '',
       date: new Date().toISOString().split('T')[0],
@@ -92,16 +94,22 @@ export const CalendarPage: React.FC = () => {
     setAnimKey(prev => prev + 1);
   };
 
-  const handleDeleteEvent = async (e: React.MouseEvent, id: string) => {
+  const requestDelete = (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
-      if (window.confirm('Deseja excluir este evento?')) {
-          try {
-              await deleteDoc(doc(db, 'events', id));
-          } catch (error) {
-              console.error("Error deleting:", error);
-          }
+      setEventToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+      if (!eventToDelete) return;
+      
+      try {
+          await deleteDoc(doc(db, 'events', eventToDelete));
+          setEventToDelete(null);
+      } catch (error) {
+          console.error("Error deleting:", error);
+          alert("Erro ao excluir evento. Tente novamente.");
       }
-  }
+  };
 
   const handleAddEvent = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -165,6 +173,37 @@ export const CalendarPage: React.FC = () => {
             .anim-right { animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
             .anim-left { animation: slideInLeft 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         `}</style>
+
+        {/* --- DELETE CONFIRMATION MODAL --- */}
+        {eventToDelete && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                <div className={`w-full max-w-sm rounded-2xl p-6 shadow-2xl animate-pop-in ${isDarkMode ? 'bg-slate-800 text-white' : 'bg-white text-gray-800'}`}>
+                    <div className="flex flex-col items-center text-center">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${isDarkMode ? 'bg-red-900/20 text-red-400' : 'bg-red-50 text-red-500'}`}>
+                            <Trash2 size={24} />
+                        </div>
+                        <h3 className="text-xl font-bold mb-2">Excluir Evento?</h3>
+                        <p className={`mb-6 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
+                            Tem certeza que deseja remover este evento? Esta ação não pode ser desfeita.
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                onClick={() => setEventToDelete(null)} 
+                                className={`flex-1 py-2.5 rounded-xl font-medium transition-colors ${isDarkMode ? 'bg-slate-700 hover:bg-slate-600 text-gray-200' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={confirmDelete} 
+                                className="flex-1 py-2.5 rounded-xl font-medium bg-red-600 hover:bg-red-700 text-white transition-colors shadow-md"
+                            >
+                                Excluir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* --- ADD EVENT MODAL --- */}
         {isModalOpen && (
@@ -353,9 +392,9 @@ export const CalendarPage: React.FC = () => {
                                         </div>
                                      </div>
                                      
-                                     {/* Simple Delete Button (Client-side permission check could be added here) */}
+                                     {/* Delete Button */}
                                      <button 
-                                        onClick={(e) => handleDeleteEvent(e, evt.id)}
+                                        onClick={(e) => requestDelete(e, evt.id)}
                                         className="opacity-0 group-hover:opacity-100 p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
                                         title="Excluir evento"
                                      >

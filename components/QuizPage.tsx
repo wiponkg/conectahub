@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Trophy, Star, Zap, ArrowRight, CheckCircle, XCircle, BrainCircuit, Medal, ChevronRight, Loader2, User as UserIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Trophy, Star, Zap, ArrowRight, CheckCircle, XCircle, BrainCircuit, Medal, ChevronRight, Loader2, User as UserIcon, RefreshCcw } from 'lucide-react';
 import { useTheme } from '../App';
 import { User, ViewState } from '../types';
 import { auth, db } from '../lib/firebase';
@@ -93,14 +93,23 @@ export const QuizPage: React.FC<QuizPageProps> = ({ user, onNavigate }) => {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswerChecked, setIsAnswerChecked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null); // To trigger animations
 
   const currentQuestion = DAILY_QUESTIONS[currentQuestionIdx];
+
+  // Reset state when entering HUB
+  useEffect(() => {
+    if (gameState === 'HUB') {
+        setIsCorrect(null);
+    }
+  }, [gameState]);
 
   const handleStartQuiz = () => {
     setCurrentQuestionIdx(0);
     setScore(0);
     setSelectedOption(null);
     setIsAnswerChecked(false);
+    setIsCorrect(null);
     setGameState('PLAYING');
   };
 
@@ -112,12 +121,19 @@ export const QuizPage: React.FC<QuizPageProps> = ({ user, onNavigate }) => {
   const handleCheckAnswer = () => {
     if (selectedOption === null) return;
     setIsAnswerChecked(true);
-    if (selectedOption === currentQuestion.correctAnswer) {
+    
+    const correct = selectedOption === currentQuestion.correctAnswer;
+    setIsCorrect(correct);
+
+    if (correct) {
       setScore(prev => prev + currentQuestion.points);
     }
   };
 
   const handleNextQuestion = async () => {
+    // Reset animation states
+    setIsCorrect(null);
+    
     if (currentQuestionIdx < DAILY_QUESTIONS.length - 1) {
       setCurrentQuestionIdx(prev => prev + 1);
       setSelectedOption(null);
@@ -149,27 +165,88 @@ export const QuizPage: React.FC<QuizPageProps> = ({ user, onNavigate }) => {
       return false; 
   };
 
-  return (
-    <div className={`min-h-full p-6 md:p-12 max-w-7xl mx-auto font-sans animate-fade-in ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-        
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-            <div>
-                <h1 className="text-3xl font-bold flex items-center gap-2">
-                    <Trophy className="text-yellow-500" />
-                    Central de Conquistas
-                </h1>
-                <p className={`mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Complete missões e suba no ranking!</p>
-            </div>
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold shadow-sm ${isDarkMode ? 'bg-slate-800 text-yellow-400 border border-slate-700' : 'bg-white text-yellow-600 border border-gray-100'}`}>
-                <Medal size={20} />
-                <span>{user.points || 0} pts</span>
-            </div>
+  // Helper component for Confetti
+  const ConfettiRain = () => {
+    return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+            {[...Array(30)].map((_, i) => (
+                <div
+                    key={i}
+                    className="absolute animate-confetti"
+                    style={{
+                        left: `${Math.random() * 100}%`,
+                        top: `-${Math.random() * 20}%`,
+                        backgroundColor: ['#FCD34D', '#F87171', '#60A5FA', '#34D399', '#A78BFA'][Math.floor(Math.random() * 5)],
+                        width: `${Math.random() * 10 + 5}px`,
+                        height: `${Math.random() * 10 + 5}px`,
+                        animationDuration: `${Math.random() * 3 + 2}s`,
+                        animationDelay: `${Math.random() * 2}s`
+                    }}
+                />
+            ))}
         </div>
+    );
+  };
+
+  return (
+    <div className={`min-h-full p-6 md:p-12 max-w-7xl mx-auto font-sans animate-fade-in relative ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+        
+        {/* CSS for Custom Quiz Animations */}
+        <style>{`
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                20%, 60% { transform: translateX(-5px); }
+                40%, 80% { transform: translateX(5px); }
+            }
+            .animate-shake {
+                animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+            }
+            @keyframes successPop {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+            .animate-success-pop {
+                animation: successPop 0.3s ease-out forwards;
+            }
+            @keyframes slideInRight {
+                from { opacity: 0; transform: translateX(20px); }
+                to { opacity: 1; transform: translateX(0); }
+            }
+            .animate-slide-in-right {
+                animation: slideInRight 0.4s ease-out forwards;
+            }
+            @keyframes confetti {
+                0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+                100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+            }
+            .animate-confetti {
+                animation-name: confetti;
+                animation-timing-function: linear;
+                animation-iteration-count: infinite;
+            }
+        `}</style>
+
+        {/* Header - Hidden in Victory to reduce noise */}
+        {gameState !== 'VICTORY' && (
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold flex items-center gap-2">
+                        <Trophy className="text-yellow-500" />
+                        Central de Conquistas
+                    </h1>
+                    <p className={`mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Complete missões e suba no ranking!</p>
+                </div>
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold shadow-sm ${isDarkMode ? 'bg-slate-800 text-yellow-400 border border-slate-700' : 'bg-white text-yellow-600 border border-gray-100'}`}>
+                    <Medal size={20} />
+                    <span>{user.points || 0} pts</span>
+                </div>
+            </div>
+        )}
 
         {/* --- HUB VIEW --- */}
         {gameState === 'HUB' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
                 {/* Main Feature: Quiz */}
                 <div className={`lg:col-span-2 rounded-3xl p-8 relative overflow-hidden shadow-xl transition-all hover:scale-[1.005] group cursor-pointer flex flex-col justify-between min-h-[300px] ${isDarkMode ? 'bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/30' : 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white'}`} onClick={handleStartQuiz}>
                      <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/20 transition-colors"></div>
@@ -261,75 +338,109 @@ export const QuizPage: React.FC<QuizPageProps> = ({ user, onNavigate }) => {
 
         {/* --- PLAYING VIEW --- */}
         {gameState === 'PLAYING' && (
-            <div className="max-w-2xl mx-auto mt-8">
-                {/* Progress Bar */}
-                <div className="mb-8">
-                    <div className="flex justify-between text-xs font-bold mb-2 uppercase tracking-wider opacity-60">
-                        <span>Questão {currentQuestionIdx + 1} de {DAILY_QUESTIONS.length}</span>
-                        <span>Pontos: {score}</span>
+            <div className="max-w-3xl mx-auto mt-4 md:mt-8">
+                {/* Progress Header */}
+                <div className="mb-8 flex flex-col gap-4">
+                    <div className="flex justify-between items-end">
+                         <div className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'bg-slate-800 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+                            Questão {currentQuestionIdx + 1} / {DAILY_QUESTIONS.length}
+                         </div>
+                         <div className={`flex items-center gap-2 ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                             <Zap size={18} fill="currentColor" />
+                             <span className="font-bold">{score} pts</span>
+                         </div>
                     </div>
-                    <div className={`w-full h-2 rounded-full ${isDarkMode ? 'bg-slate-800' : 'bg-gray-200'}`}>
+                    
+                    {/* Visual Progress Bar */}
+                    <div className={`w-full h-3 rounded-full overflow-hidden ${isDarkMode ? 'bg-slate-800' : 'bg-gray-200'}`}>
                         <div 
-                            className="h-full bg-blue-500 rounded-full transition-all duration-500 ease-out"
+                            className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-700 ease-out relative"
                             style={{ width: `${((currentQuestionIdx + 1) / DAILY_QUESTIONS.length) * 100}%` }}
-                        ></div>
+                        >
+                            <div className="absolute top-0 right-0 bottom-0 w-full bg-white/20 animate-pulse"></div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Question Card */}
-                <div className={`p-8 rounded-3xl shadow-2xl mb-8 animate-slide-up ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'}`}>
-                    <h2 className="text-xl md:text-2xl font-bold mb-8 leading-relaxed">{currentQuestion.text}</h2>
+                {/* Question Card - Key helps React create a new instance for animation */}
+                <div key={currentQuestionIdx} className="animate-slide-in-right">
+                    <div className={`p-8 md:p-10 rounded-[2rem] shadow-2xl mb-8 relative overflow-hidden transition-colors ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-100'}`}>
+                        {/* Decorative background element */}
+                        <div className={`absolute top-0 right-0 w-32 h-32 opacity-10 rounded-bl-[4rem] ${isDarkMode ? 'bg-blue-500' : 'bg-blue-600'}`}></div>
 
-                    <div className="space-y-3">
-                        {currentQuestion.options.map((option, idx) => {
-                            let optionClass = isDarkMode 
-                                ? 'bg-slate-900 border-slate-700 hover:bg-slate-700 text-gray-300' 
-                                : 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700';
-                            
-                            if (isAnswerChecked) {
-                                if (idx === currentQuestion.correctAnswer) {
-                                    optionClass = 'bg-green-500 text-white border-green-600 shadow-md ring-2 ring-green-300 dark:ring-green-900';
-                                } else if (idx === selectedOption) {
-                                    optionClass = 'bg-red-500 text-white border-red-600 opacity-80';
-                                } else {
-                                    optionClass = 'opacity-50 grayscale';
+                        <h2 className="text-2xl md:text-3xl font-bold mb-8 leading-snug relative z-10">
+                            {currentQuestion.text}
+                        </h2>
+
+                        <div className="space-y-4 relative z-10">
+                            {currentQuestion.options.map((option, idx) => {
+                                // Determine styling based on state
+                                const isSelected = selectedOption === idx;
+                                const isCorrectAnswer = idx === currentQuestion.correctAnswer;
+                                
+                                let containerClasses = isDarkMode 
+                                    ? 'bg-slate-900 border-slate-700 hover:bg-slate-700/80' 
+                                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100';
+                                
+                                let textClass = isDarkMode ? 'text-gray-300' : 'text-gray-700';
+                                let icon = <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-colors ${isDarkMode ? 'border-slate-600 text-slate-500' : 'border-gray-300 text-gray-400'}`}>{String.fromCharCode(65 + idx)}</div>;
+
+                                if (isAnswerChecked) {
+                                    if (isCorrectAnswer) {
+                                        containerClasses = 'bg-green-500/10 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)] ring-1 ring-green-500 animate-success-pop';
+                                        textClass = 'text-green-600 dark:text-green-400 font-bold';
+                                        icon = <CheckCircle className="text-green-500" size={24} fill={isDarkMode ? "rgba(34,197,94,0.2)" : "white"} />;
+                                    } else if (isSelected && !isCorrectAnswer) {
+                                        containerClasses = 'bg-red-500/10 border-red-500 ring-1 ring-red-500 animate-shake';
+                                        textClass = 'text-red-600 dark:text-red-400 font-medium';
+                                        icon = <XCircle className="text-red-500" size={24} fill={isDarkMode ? "rgba(239,68,68,0.2)" : "white"} />;
+                                    } else {
+                                        containerClasses += ' opacity-50 grayscale';
+                                    }
+                                } else if (isSelected) {
+                                    containerClasses = `bg-blue-600 border-blue-600 shadow-lg scale-[1.02] transform`;
+                                    textClass = 'text-white font-bold';
+                                    icon = <div className="w-6 h-6 rounded-full bg-white text-blue-600 flex items-center justify-center text-xs font-bold shadow-sm">{String.fromCharCode(65 + idx)}</div>;
                                 }
-                            } else if (selectedOption === idx) {
-                                optionClass = 'bg-blue-600 text-white border-blue-700 shadow-lg scale-[1.02]';
-                            }
 
-                            return (
-                                <button
-                                    key={idx}
-                                    onClick={() => handleOptionSelect(idx)}
-                                    disabled={isAnswerChecked}
-                                    className={`w-full text-left p-4 rounded-xl border font-medium transition-all duration-200 flex items-center justify-between group ${optionClass}`}
-                                >
-                                    <span>{option}</span>
-                                    {isAnswerChecked && idx === currentQuestion.correctAnswer && <CheckCircle size={20} />}
-                                    {isAnswerChecked && idx === selectedOption && idx !== currentQuestion.correctAnswer && <XCircle size={20} />}
-                                </button>
-                            );
-                        })}
+                                return (
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleOptionSelect(idx)}
+                                        disabled={isAnswerChecked}
+                                        className={`w-full text-left p-5 rounded-2xl border-2 transition-all duration-200 flex items-center gap-4 group relative overflow-hidden ${containerClasses}`}
+                                    >
+                                        <div className="shrink-0 relative z-10">{icon}</div>
+                                        <span className={`text-lg relative z-10 ${textClass}`}>{option}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex justify-end">
+                {/* Actions Bar */}
+                <div className="flex justify-between items-center h-16">
+                    <div className="text-sm font-medium italic opacity-60">
+                         {isAnswerChecked 
+                            ? (isCorrect ? "Mandou bem!" : "Não foi dessa vez...") 
+                            : "Selecione uma opção"}
+                    </div>
+
                     {!isAnswerChecked ? (
                         <button
                             onClick={handleCheckAnswer}
                             disabled={selectedOption === null}
-                            className={`px-8 py-3 rounded-full font-bold text-white transition-all shadow-lg active:scale-95 ${selectedOption === null ? 'bg-gray-400 cursor-not-allowed opacity-50' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/30'}`}
+                            className={`px-8 py-3.5 rounded-full font-bold text-white transition-all shadow-lg active:scale-95 flex items-center gap-2 ${selectedOption === null ? 'bg-gray-400 cursor-not-allowed opacity-50' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/30'}`}
                         >
                             Confirmar Resposta
                         </button>
                     ) : (
                         <button
                             onClick={handleNextQuestion}
-                            className="px-8 py-3 rounded-full font-bold text-white bg-green-600 hover:bg-green-700 transition-all shadow-lg flex items-center gap-2 hover:shadow-green-500/30 animate-pop-in"
+                            className="px-8 py-3.5 rounded-full font-bold text-white bg-green-600 hover:bg-green-700 transition-all shadow-lg flex items-center gap-2 hover:shadow-green-500/30 animate-success-pop"
                         >
-                            {isLoading ? <Loader2 className="animate-spin" /> : (currentQuestionIdx < DAILY_QUESTIONS.length - 1 ? 'Próxima Pergunta' : 'Finalizar Quiz')}
+                            {isLoading ? <Loader2 className="animate-spin" /> : (currentQuestionIdx < DAILY_QUESTIONS.length - 1 ? 'Próxima Pergunta' : 'Ver Resultado')}
                             {!isLoading && <ChevronRight size={20} />}
                         </button>
                     )}
@@ -339,37 +450,58 @@ export const QuizPage: React.FC<QuizPageProps> = ({ user, onNavigate }) => {
 
         {/* --- VICTORY VIEW --- */}
         {gameState === 'VICTORY' && (
-            <div className="flex flex-col items-center justify-center py-12 animate-pop-in">
-                <div className="relative mb-8">
-                     <div className="absolute inset-0 bg-yellow-400 blur-3xl opacity-20 rounded-full animate-pulse"></div>
-                     <Trophy size={80} className="text-yellow-400 relative z-10 drop-shadow-lg" />
-                </div>
-                
-                <h2 className="text-4xl font-bold mb-2 text-center">Quiz Concluído!</h2>
-                <p className={`text-lg mb-8 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Você demonstrou ótimo conhecimento sobre nossa cultura.</p>
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center p-4 overflow-hidden">
+                {/* Background Effects */}
+                <div className={`absolute inset-0 ${isDarkMode ? 'bg-slate-900' : 'bg-white'}`}></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-blue-500/10 to-transparent"></div>
+                <ConfettiRain />
 
-                <div className={`p-8 rounded-3xl w-full max-w-sm mb-8 text-center border shadow-xl ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-100'}`}>
-                    <span className="block text-sm font-bold uppercase tracking-wider text-gray-500 mb-2">Pontuação Total</span>
-                    <span className="block text-6xl font-black text-blue-600 mb-4">{score}</span>
-                    <div className="inline-flex items-center gap-1 text-sm font-medium text-green-500 bg-green-500/10 px-3 py-1 rounded-full">
-                        <TrendingUpIcon size={14} />
-                        <span>+ Ranking atualizado</span>
+                <div className="relative z-10 flex flex-col items-center animate-pop-in max-w-lg w-full text-center">
+                    
+                    <div className="relative mb-8 group">
+                         <div className="absolute inset-0 bg-yellow-400/30 blur-[40px] rounded-full animate-pulse group-hover:bg-yellow-400/50 transition-colors"></div>
+                         <Trophy size={100} className="text-yellow-400 relative z-10 drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)] transform group-hover:scale-110 transition-transform duration-500" fill="currentColor" />
+                         <div className="absolute -top-4 -right-4 animate-bounce delay-700">
+                             <Star className="text-yellow-300 fill-yellow-300 drop-shadow-lg" size={40} />
+                         </div>
                     </div>
-                </div>
+                    
+                    <h2 className="text-4xl md:text-5xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-amber-600 tracking-tight">
+                        Quiz Concluído!
+                    </h2>
+                    <p className={`text-lg md:text-xl mb-10 font-medium ${isDarkMode ? 'text-blue-200' : 'text-gray-600'}`}>
+                        Você dominou o conhecimento de hoje.
+                    </p>
 
-                <div className="flex gap-4">
-                    <button 
-                        onClick={() => setGameState('HUB')}
-                        className={`px-6 py-3 rounded-full font-bold transition-colors ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
-                    >
-                        Voltar ao Início
-                    </button>
-                    <button 
-                        onClick={() => onNavigate('DASHBOARD_RANKING')}
-                        className="px-6 py-3 rounded-full font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-transform hover:scale-105"
-                    >
-                        Ver Ranking
-                    </button>
+                    <div className={`p-8 rounded-[2.5rem] w-full mb-10 text-center border shadow-2xl relative overflow-hidden group ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-white'}`}>
+                        <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/5 to-purple-500/5 group-hover:opacity-100 transition-opacity"></div>
+                        
+                        <span className="block text-sm font-bold uppercase tracking-widest text-gray-400 mb-2">Pontuação Final</span>
+                        <div className="flex items-center justify-center gap-1 mb-4">
+                            <span className="text-7xl md:text-8xl font-black text-blue-600 tracking-tighter drop-shadow-sm">{score}</span>
+                            <span className="text-2xl text-gray-400 font-bold self-end mb-4">/ {DAILY_QUESTIONS.reduce((acc, q) => acc + q.points, 0)}</span>
+                        </div>
+                        
+                        <div className="inline-flex items-center gap-2 text-sm font-bold text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-4 py-1.5 rounded-full border border-green-200 dark:border-green-800/50">
+                            <Medal size={16} />
+                            <span>Ranking atualizado</span>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row gap-4 w-full px-4">
+                        <button 
+                            onClick={() => setGameState('HUB')}
+                            className={`flex-1 px-6 py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+                        >
+                           <RefreshCcw size={20} /> Início
+                        </button>
+                        <button 
+                            onClick={() => onNavigate('DASHBOARD_RANKING')}
+                            className="flex-1 px-6 py-4 rounded-2xl font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-600/30 transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                        >
+                            <Trophy size={20} /> Ver Ranking
+                        </button>
+                    </div>
                 </div>
             </div>
         )}

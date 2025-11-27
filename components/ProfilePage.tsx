@@ -195,16 +195,30 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
                     const querySnapshot = await getDocs(q);
 
                     if (!querySnapshot.empty) {
-                        const batch = writeBatch(db);
-                        
+                        // Handle batches of 500 (Firestore limit)
+                        const batches = [];
+                        let batch = writeBatch(db);
+                        let operationCounter = 0;
+
                         querySnapshot.forEach((docSnap) => {
                             batch.update(docSnap.ref, {
                                 authorName: formData.name,
                                 authorAvatar: avatarPreview
                             });
+                            operationCounter++;
+
+                            if (operationCounter === 500) {
+                                batches.push(batch.commit());
+                                batch = writeBatch(db);
+                                operationCounter = 0;
+                            }
                         });
 
-                        await batch.commit();
+                        if (operationCounter > 0) {
+                            batches.push(batch.commit());
+                        }
+
+                        await Promise.all(batches);
                         console.log(`Updated ${querySnapshot.size} posts with new profile info.`);
                     }
                 } catch (batchError) {
