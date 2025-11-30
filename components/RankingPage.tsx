@@ -82,8 +82,10 @@ export const RankingPage: React.FC = () => {
     }));
   }, [users, selectedDept, selectedRole]);
 
-  const topThree = filteredUsers.slice(0, 3);
-  const restOfList = filteredUsers.slice(3);
+  // Limit visual output to Top 10
+  const displayedUsers = filteredUsers.slice(0, 10);
+  const topThree = displayedUsers.slice(0, 3);
+  const restOfList = displayedUsers.slice(3);
 
   // Helper para renderizar avatar ou iniciais
   const renderAvatar = (avatarUrl: string | undefined, name: string) => {
@@ -276,7 +278,7 @@ export const RankingPage: React.FC = () => {
 
         </div>
 
-        {/* List Section */}
+        {/* List Section (Ranks 4-10) */}
         <div className="w-full max-w-3xl px-4 md:px-0 z-10 flex-1 overflow-y-auto custom-scrollbar pb-4 min-h-0">
             {restOfList.length > 0 ? (
                 <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
