@@ -1,4 +1,4 @@
-# ConectaHub 🚀
+# ConectaHub 
 
 **ConectaHub** é uma plataforma moderna de comunicação corporativa e engajamento de comunidade, projetada para conectar colaboradores, promover a cultura organizacional e gamificar a experiência no ambiente de trabalho.
 
@@ -13,7 +13,6 @@
 - [Configuração e Instalação](#-configuração-e-instalação)
 - [Configuração do Firebase](#-configuração-do-firebase)
 - [Contribuição](#-contribuição)
-- [Licença](#-licença)
 
 ---
 
@@ -23,20 +22,20 @@ O ConectaHub nasceu da necessidade de centralizar a comunicação interna e aume
 
 ---
 
-## ✨ Principais Funcionalidades
+##  Principais Funcionalidades
 
-- 🔐 **Autenticação Segura**: Login e registro com verificação de e-mail via Firebase Auth.
-- 📊 **Dashboard Interativo**: Visão geral de pontos, missões e atividades recentes.
-- 🏆 **Gamificação (Ranking)**: Sistema de pontuação e ranking para incentivar a participação.
-- 🧩 **Quizzes e Missões**: Desafios interativos para aprendizado e engajamento.
-- 📅 **Calendário de Eventos**: Acompanhamento de datas importantes e eventos da empresa.
-- 👤 **Perfil do Usuário**: Personalização de avatar, bio e informações profissionais.
-- 🌓 **Tema Dark/Light**: Suporte nativo para modo escuro e claro.
-- 🗺️ **Onboarding Tour**: Guia interativo para novos usuários conhecerem a plataforma.
+-  **Autenticação Segura**: Login e registro com verificação de e-mail via Firebase Auth.
+-  **Dashboard Interativo**: Visão geral de pontos, missões e atividades recentes.
+-  **Gamificação (Ranking)**: Sistema de pontuação e ranking para incentivar a participação.
+-  **Quizzes e Missões**: Desafios interativos para aprendizado e engajamento.
+-  **Calendário de Eventos**: Acompanhamento de datas importantes e eventos da empresa.
+-  **Perfil do Usuário**: Personalização de avatar, bio e informações profissionais.
+-  **Tema Dark/Light**: Suporte nativo para modo escuro e claro.
+-  **Onboarding Tour**: Guia interativo para novos usuários conhecerem a plataforma.
 
 ---
 
-## 🛠 Tecnologias Utilizadas
+##  Tecnologias Utilizadas
 
 ### Frontend
 - **React 18** (Hooks, Context API)
@@ -52,7 +51,7 @@ O ConectaHub nasceu da necessidade de centralizar a comunicação interna e aume
 
 ---
 
-## 📂 Arquitetura e Estrutura
+##  Arquitetura e Estrutura
 
 ```text
 src/
@@ -66,7 +65,7 @@ src/
 
 ---
 
-## 🚀 Configuração e Instalação
+##  Configuração e Instalação
 
 ### Pré-requisitos
 - Node.js (v18 ou superior)
@@ -103,7 +102,7 @@ src/
 
 ---
 
-## 🔥 Configuração do Firebase
+##  Configuração do Firebase
 
 Para que o projeto funcione corretamente, você precisa configurar o Firebase:
 
@@ -115,7 +114,7 @@ Para que o projeto funcione corretamente, você precisa configurar o Firebase:
 
 ---
 
-## 🤝 Contribuição
+##  Contribuição
 
 Contribuições são sempre bem-vindas!
 
@@ -124,12 +123,6 @@ Contribuições são sempre bem-vindas!
 3. Faça o **Commit** de suas alterações (`git commit -m 'Adicionando nova feature'`).
 4. Faça o **Push** para a Branch (`git push origin feature/NovaFeature`).
 5. Abra um **Pull Request**.
-
----
-
-## 📄 Licença
-
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
 ---
 
