@@ -4,7 +4,7 @@
 
 ---
 
-## 📋 Índice
+## Índice
 
 - [Sobre o Projeto](#-sobre-o-projeto)
 - [Principais Funcionalidades](#-principais-funcionalidades)
@@ -16,7 +16,7 @@
 
 ---
 
-## 📖 Sobre o Projeto
+## Sobre o Projeto
 
 O ConectaHub nasceu da necessidade de centralizar a comunicação interna e aumentar o engajamento através de elementos de gamificação. A plataforma oferece um ambiente seguro e intuitivo onde usuários podem acompanhar missões, participar de quizzes, visualizar rankings e gerenciar seu perfil profissional.
 
