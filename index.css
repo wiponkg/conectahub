@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+.curve-bottom {
+  border-bottom-left-radius: 50% 20%;
+  border-bottom-right-radius: 50% 20%;
+}
+.clip-diagonal {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 50%);
+}
+.clip-ranking {
+  clip-path: polygon(0 60%, 100% 0, 100% 100%, 0 100%);
+}
