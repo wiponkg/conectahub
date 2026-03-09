@@ -126,4 +126,4 @@ Contribuições são sempre bem-vindas!
 
 ---
 
-<p align="center">Feito com ❤️ pela equipe ConectaHub</p>
+<p align="center">Feito com ❤️ por William José</p>
